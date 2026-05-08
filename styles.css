@@ -44,7 +44,8 @@ a { text-decoration: none; color: inherit; }
   gap: 1rem; padding: 1rem 0; flex-wrap: wrap;
 }
 
-.logo { font-size: 1.8rem; font-weight: bold; color: #34d399; }
+.logo { font-size: 1.8rem; font-weight: bold; color: #34d399; display: inline-flex; align-items: center; gap: 0.5rem; }
+.logo-mark { width: 1.8rem; height: 1.8rem; display: inline-block; }
 
 .nav-links { list-style: none; display: flex; gap: 1.2rem; flex-wrap: wrap; }
 .nav-links a { color: #c4d2f5; font-size: 1rem; transition: color 0.3s ease; }
