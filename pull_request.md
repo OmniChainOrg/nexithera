@@ -26,7 +26,7 @@ This pull request introduces the first public version of **NexiThera.com**, the 
 
 ### How to test
 
-1. Navigate to the `nexithera-site` directory.
+1. Navigate to the `/workspace/nexithera` directory.
 2. Open `index.html` in any modern browser.
 3. Resize the browser window to ensure responsive behaviour.
 4. Click the navigation links to confirm smooth scrolling.
