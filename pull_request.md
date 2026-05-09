@@ -10,8 +10,8 @@ This pull request introduces the first public version of **NexiThera.com**, the 
 - **Navigation bar** with anchor links for smooth scrolling between sections.
 - **Hero section** summarising the company mission: *“Autonomous Cognition for Next‑Generation Therapies”* and introducing our expanded narrative around precision medicine, biologics, synthetic biology, translational science, autonomous discovery, computational therapeutics, genomic/proteomic systems, formulation intelligence, regenerative medicine and probabilistic biomedical infrastructure.
 - **About section** explaining the evolution from TheraVac and the integration of Genovate and ChronoThera within EpistemicOS.
-- **Platform section** now features four cards detailing the core pillars of our cognition stack: **EpistemicOS** (verifiable intelligence kernel), **Agentic Orchestration** (up to 10 powerful AI‑Agents collaborating across domains), **Guardian – Human Variant** (ethics and oversight) and **Data Fusion** (multi‑omics, genomic/proteomic integration and probabilistic biomedical infrastructure).  The previous CXUs and OmniChain cards have been replaced to reflect the updated architecture.
-- **Programs section** listing key therapeutic areas: **Immunotherapies**, **Synthetic Biology & Systems**, **Regenerative Medicine & Longevity**, and **Adaptive Formulations & Formulation Intelligence**, each with richer descriptions that embed our mission’s keywords (precision medicine, biologics, translational science, computational therapeutics, genomic/proteomic systems, regenerative medicine, formulation intelligence and longevity).
+- **Platform section** now features four cards detailing the core pillars of our cognition stack: **EpistemicOS** (verifiable intelligence kernel), **Agentic Orchestration** (up to 10 powerful AI‑Agents collaborating across domains), **The Guardian** (ethics and oversight) and **Data Fusion** (multi‑omics, genomic/proteomic integration and probabilistic biomedical infrastructure).  The previous CXUs and OmniChain cards have been replaced to reflect the updated architecture.
+- **Programs section** listing key therapeutic areas: **Oncology & Immunotherapy**, **Synthetic Biology & Systems**, **Regenerative Medicine & Longevity**, **Advanced Formulation**, and **Biodefense & Emerging Infectious Diseases**, each with richer descriptions that embed our mission’s keywords (precision medicine, biologics, translational science, computational therapeutics, genomic/proteomic systems, regenerative medicine, formulation intelligence and longevity).
 - Placeholder sections for **News**, **Careers** and **Contact**, ready for expansion.
 - **Footer** with copyright notice and links to legal documents.
 - **Smooth scrolling** implemented with a small JavaScript helper.
@@ -26,7 +26,7 @@ This pull request introduces the first public version of **NexiThera.com**, the 
 
 ### How to test
 
-1. Navigate to the `nexithera-site` directory.
+1. Navigate to the `/workspace/nexithera` directory.
 2. Open `index.html` in any modern browser.
 3. Resize the browser window to ensure responsive behaviour.
 4. Click the navigation links to confirm smooth scrolling.
