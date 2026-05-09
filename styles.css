@@ -45,6 +45,8 @@ a { text-decoration: none; color: inherit; }
 }
 
 .logo { font-size: 1.8rem; font-weight: bold; color: #34d399; display: inline-flex; align-items: center; gap: 0.5rem; }
+.logo-text { display: flex; flex-direction: column; line-height: 1.1; }
+.logo-text small { font-size: 0.65rem; font-weight: 500; color: #c4d2f5; margin-top: 0.15rem; letter-spacing: 0.01em; }
 .logo-mark { width: 1.8rem; height: 1.8rem; display: inline-block; }
 
 .nav-links { list-style: none; display: flex; gap: 1.2rem; flex-wrap: wrap; }
@@ -105,8 +107,21 @@ a { text-decoration: none; color: inherit; }
   color: #34d399;
 }
 
+
+.program-item-featured {
+  border: 1px solid rgba(52, 211, 153, 0.45);
+  background: linear-gradient(135deg, rgba(20, 33, 61, 0.95), rgba(30, 41, 59, 0.95));
+}
+
+.program-item-featured h4 {
+  color: #34d399;
+}
 @media (min-width: 768px) {
   .platform-item-featured {
+    grid-column: 1 / -1;
+  }
+
+  .program-item-featured {
     grid-column: 1 / -1;
   }
 }
