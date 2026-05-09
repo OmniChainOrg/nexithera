@@ -94,6 +94,21 @@ a { text-decoration: none; color: inherit; }
 .footer a { color: #8b5cf6; margin: 0 0.5rem; transition: color 0.3s ease; }
 .footer a:hover { color: #a78bfa; }
 
+
+.platform-item-featured {
+  border: 1px solid rgba(52, 211, 153, 0.45);
+  background: linear-gradient(135deg, rgba(20, 33, 61, 0.95), rgba(30, 41, 59, 0.95));
+}
+
+.platform-item-featured h3 {
+  color: #34d399;
+}
+
+@media (min-width: 768px) {
+  .platform-item-featured {
+    grid-column: 1 / -1;
+  }
+}
 @media (min-width: 768px) {
   .hero h1 { font-size: 3.5rem; }
   .hero p { font-size: 1.25rem; }
