@@ -46,8 +46,8 @@ a { text-decoration: none; color: inherit; }
 
 .logo { font-size: 1.8rem; font-weight: bold; color: #34d399; display: inline-flex; align-items: center; gap: 0.5rem; }
 .logo-text { display: flex; flex-direction: column; line-height: 1.1; }
-.logo-text small { font-size: 0.65rem; font-weight: 500; color: #c4d2f5; margin-top: 0.15rem; letter-spacing: 0.01em; }
-.logo-mark { width: 1.8rem; height: 1.8rem; display: inline-block; }
+.logo-text small { font-size: 1.3rem; font-weight: 500; color: #c4d2f5; margin-top: 0.15rem; letter-spacing: 0.01em; }
+.logo-mark { width: 2.7rem; height: 2.7rem; display: inline-block; }
 
 .nav-links { list-style: none; display: flex; gap: 1.2rem; flex-wrap: wrap; }
 .nav-links a { color: #c4d2f5; font-size: 1rem; transition: color 0.3s ease; }
@@ -86,7 +86,7 @@ a { text-decoration: none; color: inherit; }
 }
 
 .platform-item h3 { color: #8b5cf6; margin-bottom: 0.5rem; font-size: 1.2rem; }
-.program-list h4 { color: #34d399; margin-bottom: 0.5rem; font-size: 1.2rem; }
+.program-list h4 { color: #8b5cf6; margin-bottom: 0.5rem; font-size: 1.2rem; }
 .news p, .careers p, .contact p, .legal p { text-align: center; }
 .contact a { color: #8b5cf6; text-decoration: underline; }
 
@@ -116,6 +116,10 @@ a { text-decoration: none; color: inherit; }
 .program-item-featured h4 {
   color: #34d399;
 }
+
+.program-list li.program-item-featured h4 {
+  color: #34d399;
+}
 @media (min-width: 768px) {
   .platform-item-featured {
     grid-column: 1 / -1;
@@ -130,3 +134,5 @@ a { text-decoration: none; color: inherit; }
   .hero p { font-size: 1.25rem; }
   .logo { font-size: 2rem; }
 }
+
+.powered-by { text-align: center; color: #cbd5e1; margin-top: 1rem; }
