@@ -116,6 +116,10 @@ a { text-decoration: none; color: inherit; }
 .program-item-featured h4 {
   color: #8b5cf6;
 }
+
+.program-list li.program-item-featured h4 {
+  color: #34d399;
+}
 @media (min-width: 768px) {
   .platform-item-featured {
     grid-column: 1 / -1;
