@@ -1,3 +1,5 @@
+import json
+
 import asyncpg
 from typing import Optional, Dict, Any
 from .config import settings
@@ -18,12 +20,29 @@ class Database:
             database=settings.DB_NAME,
             min_size=1,
             max_size=10,
-            command_timeout=60
+            command_timeout=60,
+            init=cls._init_connection,
         )
         
         # Initialize schema
         await cls._init_schema()
         return cls._pool
+
+    @staticmethod
+    async def _init_connection(conn: asyncpg.Connection) -> None:
+        """Register a JSON/JSONB codec so dicts can be passed as parameters."""
+        await conn.set_type_codec(
+            "jsonb",
+            encoder=json.dumps,
+            decoder=json.loads,
+            schema="pg_catalog",
+        )
+        await conn.set_type_codec(
+            "json",
+            encoder=json.dumps,
+            decoder=json.loads,
+            schema="pg_catalog",
+        )
     
     @classmethod
     async def _init_schema(cls):

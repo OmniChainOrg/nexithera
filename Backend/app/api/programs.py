@@ -1,23 +1,11 @@
-from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel
-from typing import Optional, List
 import uuid
+
+from fastapi import APIRouter, HTTPException
+
 from ..core.database import db
+from ..schemas.program import ProgramCreate, ProgramResponse
 
 router = APIRouter(prefix="/programs", tags=["programs"])
-
-class ProgramCreate(BaseModel):
-    name: str
-    therapeutic_area: str
-    description: Optional[str] = None
-
-class ProgramResponse(BaseModel):
-    id: str
-    name: str
-    therapeutic_area: str
-    description: Optional[str]
-    status: str
-    created_at: str
 
 @router.post("", response_model=ProgramResponse)
 async def create_program(program: ProgramCreate):
