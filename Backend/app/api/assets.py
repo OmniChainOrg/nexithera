@@ -1,18 +1,10 @@
-from fastapi import APIRouter, HTTPException, UploadFile, File, Depends
-from pydantic import BaseModel
-from typing import Optional
-from ..services.asset_service import asset_service
+from fastapi import APIRouter, HTTPException, UploadFile, File
+
 from ..core.database import db
+from ..schemas.asset import AssetResponse, AssetList
+from ..services.asset_service import asset_service
 
 router = APIRouter(prefix="/programs/{program_id}/assets", tags=["assets"])
-
-class AssetResponse(BaseModel):
-    asset_id: str
-    filename: str
-    status: str
-    epistemicos_run_id: Optional[str]
-    embedding_collection_id: Optional[str]
-    chunk_count: Optional[int]
 
 @router.post("", response_model=AssetResponse)
 async def upload_asset(
@@ -49,7 +41,7 @@ async def upload_asset(
     
     return result
 
-@router.get("")
+@router.get("", response_model=AssetList)
 async def list_assets(program_id: str):
     """List all assets for a program."""
     assets = await asset_service.list_assets(program_id)
