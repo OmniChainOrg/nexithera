@@ -1,4 +1,5 @@
 # app/services/evidence_service.py
+import json
 import uuid
 from typing import List, Dict, Any, Optional
 from ..core.database import db

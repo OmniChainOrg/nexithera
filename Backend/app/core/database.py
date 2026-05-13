@@ -129,7 +129,93 @@ class Database:
             await conn.execute("CREATE INDEX IF NOT EXISTS idx_assets_status ON data_assets(status)")
             await conn.execute("CREATE INDEX IF NOT EXISTS idx_runs_status ON epistemicos_runs(status)")
             await conn.execute("CREATE INDEX IF NOT EXISTS idx_zones_program_id ON zones(program_id)")
-            
+
+            # ---------------- Evidence graph (PR #2) ----------------
+
+            # Bio entities (nodes in the evidence graph)
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS bio_entities (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    entity_type TEXT NOT NULL CHECK (entity_type IN (
+                        'gene', 'protein', 'disease', 'compound',
+                        'pathway', 'assay', 'biomarker', 'cell_type', 'species'
+                    )),
+                    name TEXT NOT NULL,
+                    external_id TEXT,
+                    external_db TEXT,
+                    description TEXT,
+                    metadata JSONB DEFAULT '{}',
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    UNIQUE(entity_type, name, external_id)
+                )
+            """)
+
+            # References (provenance)
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS "references" (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    ref_type TEXT NOT NULL CHECK (ref_type IN (
+                        'pubmed', 'doi', 'internal_doc', 'dataset', 'clinical_trial'
+                    )),
+                    ref_id TEXT NOT NULL,
+                    title TEXT,
+                    authors JSONB DEFAULT '[]',
+                    journal TEXT,
+                    year INTEGER,
+                    url TEXT,
+                    UNIQUE(ref_type, ref_id)
+                )
+            """)
+
+            # Claims (atomic statements extracted from references)
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS claims (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    reference_id UUID NOT NULL REFERENCES "references"(id) ON DELETE CASCADE,
+                    claim_text TEXT NOT NULL,
+                    claim_type TEXT NOT NULL,
+                    confidence REAL,
+                    metadata JSONB DEFAULT '{}',
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                )
+            """)
+
+            # Evidence edges (relationships between bio_entities)
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS evidence_edges (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    source_id UUID NOT NULL REFERENCES bio_entities(id) ON DELETE CASCADE,
+                    target_id UUID NOT NULL REFERENCES bio_entities(id) ON DELETE CASCADE,
+                    predicate TEXT NOT NULL,
+                    confidence REAL NOT NULL CHECK (confidence >= 0 AND confidence <= 1),
+                    is_contradiction BOOLEAN NOT NULL DEFAULT FALSE,
+                    claim_id UUID REFERENCES claims(id),
+                    reference_id UUID NOT NULL REFERENCES "references"(id) ON DELETE CASCADE,
+                    direction TEXT DEFAULT 'directed',
+                    evidence_strength TEXT CHECK (evidence_strength IN (
+                        'strong', 'moderate', 'weak', 'predicted', 'contradicts'
+                    )),
+                    notes TEXT,
+                    metadata JSONB DEFAULT '{}',
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    UNIQUE(source_id, target_id, predicate, reference_id)
+                )
+            """)
+
+            # Indexes for graph queries
+            await conn.execute("CREATE INDEX IF NOT EXISTS idx_bio_entities_name ON bio_entities(name)")
+            await conn.execute("CREATE INDEX IF NOT EXISTS idx_bio_entities_type ON bio_entities(entity_type)")
+            await conn.execute("CREATE INDEX IF NOT EXISTS idx_edges_source ON evidence_edges(source_id)")
+            await conn.execute("CREATE INDEX IF NOT EXISTS idx_edges_target ON evidence_edges(target_id)")
+            await conn.execute("CREATE INDEX IF NOT EXISTS idx_edges_predicate ON evidence_edges(predicate)")
+            await conn.execute("CREATE INDEX IF NOT EXISTS idx_edges_confidence ON evidence_edges(confidence DESC)")
+            await conn.execute("CREATE INDEX IF NOT EXISTS idx_edges_reference ON evidence_edges(reference_id)")
+            await conn.execute("CREATE INDEX IF NOT EXISTS idx_claims_reference ON claims(reference_id)")
+            await conn.execute("CREATE INDEX IF NOT EXISTS idx_bio_entities_metadata ON bio_entities USING GIN(metadata)")
+            await conn.execute("CREATE INDEX IF NOT EXISTS idx_edges_metadata ON evidence_edges USING GIN(metadata)")
+
             # Create default organization for MVP
             await conn.execute("""
                 INSERT INTO organizations (id, name) 
