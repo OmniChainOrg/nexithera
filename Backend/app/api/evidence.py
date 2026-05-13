@@ -2,6 +2,7 @@
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 from typing import Optional, List
+from ..core.database import db
 from ..services.evidence_service import evidence_service
 
 router = APIRouter(prefix="/evidence", tags=["evidence"])
