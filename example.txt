@@ -1,0 +1,17 @@
+DB_HOST=localhost
+DB_PORT=5432
+DB_USER=genovate
+DB_PASSWORD=genovate123
+DB_NAME=genovate
+
+S3_ENDPOINT=localhost:9000
+S3_ACCESS_KEY=minioadmin
+S3_SECRET_KEY=minioadmin
+S3_BUCKET=genovate-assets
+
+REDIS_URL=redis://localhost:6379/0
+
+EPISTEMICOS_URL=http://epistemicos:8000
+EPISTEMICOS_MOCK_MODE=true
+
+DEBUG=false
