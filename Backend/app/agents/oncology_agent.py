@@ -36,11 +36,22 @@ class OncologyImmunotherapyAgent(BaseAgent):
         if biomarker:
             biomarker_evidence = await self._query_evidence_graph(biomarker)
         
-        # Calculate scores
-        immune_relevance = min(1.0, len(immune_evidence) * 0.2)
+        # Calculate scores.  Any immune-relevant evidence establishes a
+        # non-trivial baseline (0.5) plus a per-edge bonus, so a single strong
+        # immune signal is not penalised down to noise.
+        if immune_evidence:
+            immune_relevance = min(1.0, 0.5 + len(immune_evidence) * 0.15)
+        else:
+            immune_relevance = 0.0
         biomarker_availability = 0.8 if biomarker and len(biomarker_evidence) > 0 else 0.3
-        
-        overall_confidence = (immune_relevance + biomarker_availability) / 2
+
+        # Only average in biomarker availability when a biomarker was actually
+        # requested.  Otherwise the score reflects immune relevance alone and
+        # we don't punish callers for omitting an optional input.
+        if biomarker:
+            overall_confidence = (immune_relevance + biomarker_availability) / 2
+        else:
+            overall_confidence = immune_relevance if immune_relevance > 0 else 0.3
         
         # Determine tumor type suitability
         tumor_suitability = 0.7  # baseline for solid tumors
