@@ -2,6 +2,7 @@
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
+from ..core.database import db
 from ..services.agent_orchestrator import agent_orchestrator, get_or_create_agent
 from ..services.agent_run_service import agent_run_service
 
