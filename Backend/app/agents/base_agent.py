@@ -7,6 +7,7 @@ import json
 from ..core.database import db
 from ..services.evidence_service import evidence_service
 from ..services.hypothesis_service import hypothesis_service
+from ..services.epistemicos_client import epistemicos_client
 
 class BaseAgent(ABC):
     """Base class for all Genovate agents."""
@@ -121,3 +122,34 @@ class BaseAgent(ABC):
                 run_id, self.agent_id, critique_text, identifies_weakness,
                 suggests_improvement, severity
             )
+
+    async def _semantic_search(
+        self,
+        query: str,
+        program_id: str,
+        top_k: int = 5,
+    ) -> List[Dict]:
+        """Tool: Semantic search across program documents via EpistemicOS."""
+        pool = await db.get_pool()
+        async with pool.acquire() as conn:
+            # Get the most-recently-ingested asset's embedding collection.
+            asset = await conn.fetchrow(
+                """SELECT metadata->>'embedding_collection_id' AS collection_id
+                   FROM data_assets
+                   WHERE program_id = $1 AND status = 'ingested'
+                   ORDER BY created_at DESC
+                   LIMIT 1""",
+                program_id,
+            )
+            if not asset or not asset["collection_id"]:
+                return []
+
+            collection_id = asset["collection_id"]
+
+        result = await epistemicos_client.semantic_search(
+            query=query,
+            collection_id=collection_id,
+            program_id=program_id,
+            top_k=top_k,
+        )
+        return result.get("results", [])

@@ -44,7 +44,7 @@ class EpistemicOSClient:
         document_uri: str,
         file_type: str,
         program_context: Dict[str, Any],
-        program_id: str
+        program_id: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Send document to EpistemicOS for chunking + embedding.
@@ -188,7 +188,7 @@ class EpistemicOSClient:
         zone_id: str,
         simulation_type: str,
         inputs: Dict[str, Any],
-        program_id: str,
+        program_id: Optional[str] = None,
         candidate_id: Optional[str] = None
     ) -> Dict[str, Any]:
         """
