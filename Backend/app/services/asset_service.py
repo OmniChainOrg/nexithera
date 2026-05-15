@@ -1,4 +1,5 @@
 import uuid
+import json
 from typing import Dict, Any, Optional
 from ..core.database import db
 from ..core.storage import storage
@@ -15,7 +16,7 @@ class AssetService:
         file_type: str
     ) -> Dict[str, Any]:
         """
-        Upload file to S3, register in DB, trigger EpistemicOS ingestion.
+        Upload file to S3, register in DB, trigger REAL EpistemicOS ingestion.
         """
         # 1. Upload to S3
         s3_uri = await storage.upload_file(
@@ -33,7 +34,7 @@ class AssetService:
             # Create initial asset record
             asset_id = str(uuid.uuid4())
             
-            # Create epistemicos run first
+            # Create epistemicos run first (local UUID; EpistemicOS trace_id stored in response_payload)
             eos_run_id = str(uuid.uuid4())
             await conn.execute("""
                 INSERT INTO epistemicos_runs (id, run_type, request_payload, status)
@@ -46,12 +47,17 @@ class AssetService:
                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
             """, asset_id, filename, s3_uri, file_size, file_type, "pending", program_id, eos_run_id)
         
-        # 3. Trigger EpistemicOS ingestion (async, but we'll wait for MVP)
+        # 3. Call REAL EpistemicOS ingestion
         try:
             eos_result = await epistemicos_client.ingest_document(
                 document_uri=s3_uri,
                 file_type=file_type,
-                program_context={"program_id": program_id, "filename": filename}
+                program_context={
+                    "program_id": program_id,
+                    "filename": filename,
+                    "asset_id": asset_id,
+                },
+                program_id=program_id,
             )
             
             # Update run with results
@@ -62,18 +68,25 @@ class AssetService:
                     WHERE id = $2
                 """, eos_result, eos_run_id)
                 
-                # Update asset status
+                # Update asset status + store embedding_collection_id + EpistemicOS trace_id in metadata
+                asset_metadata = {
+                    "embedding_collection_id": eos_result.get("embedding_collection_id"),
+                    "epistemicos_trace_id": eos_result.get("trace_id"),
+                    "vector_count": eos_result.get("vector_count", 0),
+                }
                 await conn.execute("""
                     UPDATE data_assets 
-                    SET status = 'ingested'
+                    SET status = 'ingested',
+                        metadata = COALESCE(metadata, '{}'::jsonb) || $2::jsonb
                     WHERE id = $1
-                """, asset_id)
+                """, asset_id, json.dumps(asset_metadata))
             
             return {
                 "asset_id": asset_id,
                 "filename": filename,
                 "status": "ingested",
                 "epistemicos_run_id": eos_run_id,
+                "epistemicos_trace_id": eos_result.get("trace_id"),
                 "embedding_collection_id": eos_result.get("embedding_collection_id"),
                 "chunk_count": eos_result.get("vector_count", 0)
             }

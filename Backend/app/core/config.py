@@ -18,9 +18,17 @@ class Settings:
     S3_BUCKET: str = os.getenv("S3_BUCKET", "genovate-assets")
     S3_USE_SSL: bool = os.getenv("S3_USE_SSL", "false").lower() == "true"
     
-    # EpistemicOS
+    # EpistemicOS — REAL MODE now
     EPISTEMICOS_URL: str = os.getenv("EPISTEMICOS_URL", "http://epistemicos:8000")
-    EPISTEMICOS_MOCK_MODE: bool = os.getenv("EPISTEMICOS_MOCK_MODE", "true").lower() == "true"
+    EPISTEMICOS_MOCK_MODE: bool = os.getenv("EPISTEMICOS_MOCK_MODE", "false").lower() == "true"
+    EPISTEMICOS_API_KEY: str = os.getenv("EPISTEMICOS_API_KEY", "")
+    EPISTEMICOS_TIMEOUT_INGEST: int = int(os.getenv("EPISTEMICOS_TIMEOUT_INGEST", "120"))
+    EPISTEMICOS_TIMEOUT_SIMULATE: int = int(os.getenv("EPISTEMICOS_TIMEOUT_SIMULATE", "300"))
+
+    # Feature flags for gradual rollout
+    EPISTEMICOS_ENABLE_INGEST: bool = os.getenv("EPISTEMICOS_ENABLE_INGEST", "true").lower() == "true"
+    EPISTEMICOS_ENABLE_SIMULATION: bool = os.getenv("EPISTEMICOS_ENABLE_SIMULATION", "true").lower() == "true"
+    EPISTEMICOS_ENABLE_CXU: bool = os.getenv("EPISTEMICOS_ENABLE_CXU", "true").lower() == "true"
     
     # Redis
     REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")

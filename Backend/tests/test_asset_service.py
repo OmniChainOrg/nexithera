@@ -116,8 +116,11 @@ class _FakeDBStore:
             row["status"] = "completed"
             row["completed_at"] = datetime.utcnow()
         elif q.startswith("UPDATE data_assets SET status = 'ingested'"):
-            (asset_id,) = args
+            asset_id = args[0]
             self.data_assets[str(asset_id)]["status"] = "ingested"
+            if len(args) >= 2:
+                # New flow also merges metadata JSON as the second arg.
+                self.data_assets[str(asset_id)]["metadata"] = args[1]
         elif q.startswith("UPDATE data_assets SET status = 'failed'"):
             (asset_id,) = args
             self.data_assets[str(asset_id)]["status"] = "failed"
@@ -165,12 +168,14 @@ class _RecordingEpistemicOSClient:
         document_uri: str,
         file_type: str,
         program_context: Dict[str, Any],
+        program_id: str | None = None,
     ) -> Dict[str, Any]:
         self.calls.append(
             {
                 "document_uri": document_uri,
                 "file_type": file_type,
                 "program_context": program_context,
+                "program_id": program_id,
             }
         )
         if self.should_raise is not None:
