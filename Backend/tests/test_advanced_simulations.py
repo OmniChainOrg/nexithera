@@ -48,4 +48,21 @@ async def test_swarm_with_results():
 @pytest.mark.asyncio
 async def test_cross_zone_simulation():
     """Test cross-zone simulation."""
-    with patch('app.services.cross_zone_service.epistemic
+    with patch('app.services.cross_zone_service.epistemicos_client') as mock_eos:
+        mock_eos.cross_zone_simulate = AsyncMock(return_value={
+            'run_id': 'eos_run_123',
+            'results': {'coupled_output': 42},
+            'trace_id': 'trace_123'
+        })
+        
+        result = await cross_zone_service.run_cross_zone_simulation(
+            name="Test Cross",
+            source_zone_id="zone_1",
+            target_zone_id="zone_2",
+            input_state={"dose": 10},
+            program_id="prog_123",
+            coupling_map_override={"input": "output"}
+        )
+        
+        assert result['status'] == 'completed'
+        assert 'trace_id' in result
