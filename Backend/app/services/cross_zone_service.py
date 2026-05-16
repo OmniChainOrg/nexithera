@@ -1,6 +1,6 @@
 # app/services/cross_zone_service.py
 import uuid
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from datetime import datetime
 from ..core.database import db
 from .epistemicos_client import epistemicos_client

@@ -354,6 +354,63 @@ class EpistemicOSClient:
         response.raise_for_status()
         return response.json()
     
+    # ========== CXU LIFECYCLE ==========
+
+    async def start_cxu(
+        self, cxu_id: str, initial_state: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Start a CXU in EpistemicOS."""
+        if self.mock_mode:
+            return {
+                "cxu_id": cxu_id,
+                "status": "running",
+                "trace_id": f"trace_{uuid.uuid4().hex[:8]}",
+            }
+        client = self._get_client()
+        response = await client.post(
+            f"{self.base_url}/v1/cxus/{cxu_id}/start",
+            json={"initial_state": initial_state},
+        )
+        response.raise_for_status()
+        return response.json()
+
+    async def pause_cxu(self, cxu_id: str) -> Dict[str, Any]:
+        """Pause a CXU."""
+        if self.mock_mode:
+            return {"cxu_id": cxu_id, "status": "paused"}
+        client = self._get_client()
+        response = await client.post(f"{self.base_url}/v1/cxus/{cxu_id}/pause")
+        response.raise_for_status()
+        return response.json()
+
+    async def terminate_cxu(self, cxu_id: str) -> Dict[str, Any]:
+        """Terminate a CXU."""
+        if self.mock_mode:
+            return {"cxu_id": cxu_id, "status": "terminated"}
+        client = self._get_client()
+        response = await client.post(f"{self.base_url}/v1/cxus/{cxu_id}/terminate")
+        response.raise_for_status()
+        return response.json()
+
+    async def start_swarm(
+        self, swarm_id: str, members: List[Dict]
+    ) -> Dict[str, Any]:
+        """Start a swarm."""
+        if self.mock_mode:
+            return {
+                "swarm_id": swarm_id,
+                "status": "running",
+                "member_count": len(members),
+                "trace_id": f"trace_{uuid.uuid4().hex[:8]}",
+            }
+        client = self._get_client()
+        response = await client.post(
+            f"{self.base_url}/v1/swarms/{swarm_id}/start",
+            json={"members": members},
+        )
+        response.raise_for_status()
+        return response.json()
+
     # ========== TRACE & VERIFIABILITY ==========
     
     async def get_trace(self, trace_id: str) -> Dict[str, Any]:
