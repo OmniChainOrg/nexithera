@@ -1,5 +1,6 @@
 'use client';
 
+import { use } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ProgramStats } from '@/components/programs/program-stats';
 import { LoadingSpinner } from '@/components/common/loading-spinner';
@@ -12,9 +13,9 @@ import { AgentRunList } from '@/components/agents/agent-run-list';
 export default function ProgramOverviewPage({
   params,
 }: {
-  params: { programId: string };
+  params: Promise<{ programId: string }>;
 }) {
-  const programId = params.programId;
+  const { programId } = use(params);
   const candidates = useCandidates(programId);
   const runs = useAgentRuns({ program_id: programId, limit: 5 });
   const reviews = useReviews({ program_id: programId, status: 'pending' });

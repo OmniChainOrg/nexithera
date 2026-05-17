@@ -1,5 +1,6 @@
 'use client';
 
+import { use } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CXUStatusCard } from '@/components/simulations/cxu-status-card';
 import { SwarmVisualization } from '@/components/simulations/swarm-visualization';
@@ -15,11 +16,12 @@ import {
 export default function SimulationDashboardPage({
   params,
 }: {
-  params: { programId: string };
+  params: Promise<{ programId: string }>;
 }) {
-  const zones = useZones(params.programId);
-  const cxus = useCXUs(params.programId);
-  const runs = useSimulationRuns({ program_id: params.programId, limit: 20 });
+  const { programId } = use(params);
+  const zones = useZones(programId);
+  const cxus = useCXUs(programId);
+  const runs = useSimulationRuns({ program_id: programId, limit: 20 });
 
   const swarmMembers = (cxus.data ?? []).slice(0, 8).map((c) => ({
     id: c.id,

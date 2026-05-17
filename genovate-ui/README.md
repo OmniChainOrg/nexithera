@@ -8,7 +8,7 @@ This package is the **Dashboard PR #1 — UI Foundation**.
 
 | Category | Choice |
 | --- | --- |
-| Framework | Next.js 14 (App Router) |
+| Framework | Next.js 15 (App Router) — `15.5.18` |
 | Language | TypeScript (strict mode) |
 | Styling | Tailwind CSS + shadcn/ui-style primitives |
 | Server state | TanStack Query v5 |
@@ -127,4 +127,4 @@ All requests flow through the type-safe client in [`lib/api/client.ts`](./lib/ap
 
 ## Security note
 
-Next.js 14 is mandated by the PR specification. The latest Next 14 release (`14.2.35`) does not include patches for some advisories that are fixed only on Next 15+. When the spec is relaxed, upgrade to Next 15.5.16+ (or 16.2.5+) to pick up those CVEs.
+Pinned to **Next.js 15.5.18**, which patches the WebSocket-upgrade SSRF, Pages Router middleware/proxy i18n bypass, RSC HTTP request deserialization DoS, and segment-prefetch middleware bypass advisories that affected Next 14.x and earlier 15.x releases. Re-run `npm audit` after any future bump.

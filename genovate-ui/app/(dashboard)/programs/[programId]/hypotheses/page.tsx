@@ -1,5 +1,6 @@
 'use client';
 
+import { use } from 'react';
 import { HypothesisCard } from '@/components/hypotheses/hypothesis-card';
 import { CreateHypothesisForm } from '@/components/hypotheses/create-hypothesis-form';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,9 +11,10 @@ import { useHypotheses } from '@/lib/hooks/use-hypotheses';
 export default function HypothesisWorkspacePage({
   params,
 }: {
-  params: { programId: string };
+  params: Promise<{ programId: string }>;
 }) {
-  const { data, isLoading } = useHypotheses(params.programId);
+  const { programId } = use(params);
+  const { data, isLoading } = useHypotheses(programId);
 
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
@@ -30,7 +32,7 @@ export default function HypothesisWorkspacePage({
           <CardTitle className="text-base">New hypothesis</CardTitle>
         </CardHeader>
         <CardContent>
-          <CreateHypothesisForm programId={params.programId} />
+          <CreateHypothesisForm programId={programId} />
         </CardContent>
       </Card>
     </div>

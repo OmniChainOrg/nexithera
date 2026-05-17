@@ -1,13 +1,18 @@
 'use client';
 
-import { useState } from 'react';
+import { use, useState } from 'react';
 import { ReviewQueue } from '@/components/guardian/review-queue';
 import { ReviewDecisionModal } from '@/components/guardian/review-decision-modal';
 import { LoadingSpinner } from '@/components/common/loading-spinner';
 import { useReviews } from '@/lib/hooks/use-reviews';
 
-export default function GuardianQueuePage({ params }: { params: { programId: string } }) {
-  const { data, isLoading } = useReviews({ program_id: params.programId, status: 'pending' });
+export default function GuardianQueuePage({
+  params,
+}: {
+  params: Promise<{ programId: string }>;
+}) {
+  const { programId } = use(params);
+  const { data, isLoading } = useReviews({ program_id: programId, status: 'pending' });
   const [activeReviewId, setActiveReviewId] = useState<string | null>(null);
 
   return (

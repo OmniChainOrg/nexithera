@@ -1,5 +1,6 @@
 'use client';
 
+import { use } from 'react';
 import { CandidateKanban } from '@/components/candidates/candidate-kanban';
 import { CreateCandidateForm } from '@/components/candidates/create-candidate-form';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,8 +8,13 @@ import { LoadingSpinner } from '@/components/common/loading-spinner';
 import { EmptyState } from '@/components/common/empty-state';
 import { useCandidates } from '@/lib/hooks/use-candidates';
 
-export default function CandidatesPage({ params }: { params: { programId: string } }) {
-  const { data, isLoading } = useCandidates(params.programId);
+export default function CandidatesPage({
+  params,
+}: {
+  params: Promise<{ programId: string }>;
+}) {
+  const { programId } = use(params);
+  const { data, isLoading } = useCandidates(programId);
 
   return (
     <div className="space-y-6">
@@ -18,7 +24,7 @@ export default function CandidatesPage({ params }: { params: { programId: string
         ) : !data?.length ? (
           <EmptyState title="No candidates yet" description="Create one to start the pipeline." />
         ) : (
-          <CandidateKanban programId={params.programId} candidates={data} />
+          <CandidateKanban programId={programId} candidates={data} />
         )}
       </div>
 
@@ -27,7 +33,7 @@ export default function CandidatesPage({ params }: { params: { programId: string
           <CardTitle className="text-base">New candidate</CardTitle>
         </CardHeader>
         <CardContent>
-          <CreateCandidateForm programId={params.programId} />
+          <CreateCandidateForm programId={programId} />
         </CardContent>
       </Card>
     </div>

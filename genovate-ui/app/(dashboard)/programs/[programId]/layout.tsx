@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { use, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useProgram } from '@/lib/hooks/use-programs';
@@ -23,9 +23,9 @@ export default function ProgramLayout({
   params,
 }: {
   children: React.ReactNode;
-  params: { programId: string };
+  params: Promise<{ programId: string }>;
 }) {
-  const programId = params.programId;
+  const { programId } = use(params);
   const pathname = usePathname();
   const setCurrentProgramId = useProgramStore((s) => s.setCurrentProgramId);
   const program = useProgram(programId);

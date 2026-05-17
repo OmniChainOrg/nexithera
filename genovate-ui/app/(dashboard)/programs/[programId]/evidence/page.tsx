@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { use, useState } from 'react';
 import { EvidenceGraphView } from '@/components/evidence/evidence-graph';
 import { EntityDetailPanel } from '@/components/evidence/entity-detail-panel';
 import { LoadingSpinner } from '@/components/common/loading-spinner';
@@ -8,8 +8,13 @@ import { EmptyState } from '@/components/common/empty-state';
 import { Input } from '@/components/ui/input';
 import { useEvidenceGraph } from '@/lib/hooks/use-evidence-graph';
 
-export default function EvidenceGraphPage({ params }: { params: { programId: string } }) {
-  const { data, isLoading, isError } = useEvidenceGraph(params.programId);
+export default function EvidenceGraphPage({
+  params,
+}: {
+  params: Promise<{ programId: string }>;
+}) {
+  const { programId } = use(params);
+  const { data, isLoading, isError } = useEvidenceGraph(programId);
   const [selected, setSelected] = useState<string | null>(null);
   const [search, setSearch] = useState('');
 
