@@ -1,6 +1,8 @@
 import { Sidebar } from '@/components/layout/sidebar';
 import { Header } from '@/components/layout/header';
 import { ErrorBoundary } from '@/components/common/error-boundary';
+import { NotificationToaster } from '@/components/common/notification-toast';
+import { ProgramEventsListener } from '@/components/common/program-events-listener';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -12,6 +14,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <ErrorBoundary>{children}</ErrorBoundary>
         </main>
       </div>
+      <ProgramEventsListener />
+      <NotificationToaster />
     </div>
   );
 }
