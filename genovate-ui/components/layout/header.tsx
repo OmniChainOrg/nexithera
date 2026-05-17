@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { useUIStore } from '@/lib/stores/ui-store';
 import { ProgramSelector } from './program-selector';
+import { WebSocketStatus } from '@/components/common/websocket-status';
 
 export function Header() {
   const toggleSidebar = useUIStore((s) => s.toggleSidebar);
@@ -34,6 +35,8 @@ export function Header() {
       <div className="flex flex-1 items-center gap-2">
         <ProgramSelector />
       </div>
+
+      <WebSocketStatus />
 
       <Button
         variant="ghost"
