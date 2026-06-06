@@ -43,6 +43,11 @@ export const queryKeys = {
     partnerability: (candidateId: string) => ['analysis', 'partnerability', candidateId] as const,
     indReadiness: (candidateId: string) => ['analysis', 'ind-readiness', candidateId] as const,
   },
+  forecast: {
+    clinical: (candidateId: string, scenarioKey: unknown = null) =>
+      ['forecast', 'clinical', candidateId, scenarioKey] as const,
+    history: (candidateId: string) => ['forecast', 'history', candidateId] as const,
+  },
   simulations: {
     runs: (params: Record<string, unknown>) => ['simulations', 'runs', params] as const,
     run: (id: string) => ['simulations', 'runs', id] as const,

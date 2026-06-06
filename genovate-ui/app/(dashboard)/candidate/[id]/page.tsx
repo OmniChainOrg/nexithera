@@ -10,6 +10,7 @@ import { useCandidate } from '@/lib/hooks/use-candidates';
 import { PartnerabilityTab } from '@/components/candidates/partnerability-tab';
 import { INDReadinessTab } from '@/components/candidates/ind-readiness-tab';
 import { PatentMapTab } from '@/components/candidates/patent-map-tab';
+import { ClinicalForecastTab } from '@/components/forecast/clinical-forecast-tab';
 
 export default function CandidateDetailPage({
   params,
@@ -53,6 +54,7 @@ export default function CandidateDetailPage({
           <TabsTrigger value="partnerability">Partnerability</TabsTrigger>
           <TabsTrigger value="ind-readiness">IND Readiness</TabsTrigger>
           <TabsTrigger value="patent-map">Patent Map</TabsTrigger>
+          <TabsTrigger value="clinical-forecast">Clinical Forecast</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview">
@@ -82,6 +84,13 @@ export default function CandidateDetailPage({
         </TabsContent>
         <TabsContent value="patent-map">
           <PatentMapTab candidateId={id} />
+        </TabsContent>
+        <TabsContent value="clinical-forecast">
+          <ClinicalForecastTab
+            candidateId={id}
+            candidatePhase={candidate?.status ?? undefined}
+            programId={candidate?.program_id ?? undefined}
+          />
         </TabsContent>
       </Tabs>
     </div>
