@@ -40,9 +40,16 @@ class CandidateService:
         candidate_id: str,
         new_status: str,
         user_id: Optional[str] = None,
-        kill_rationale: Optional[str] = None
+        kill_rationale: Optional[str] = None,
+        trigger_type: str = "manual",
+        trigger_id: Optional[str] = None,
+        rationale: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """Advance candidate through pipeline stages."""
+        """Advance candidate through pipeline stages.
+
+        Every status change is logged in ``candidate_transitions`` (PR #8)
+        with a trigger_type so the pipeline is fully auditable.
+        """
         valid_statuses = [
             'idea', 'evidence_map', 'hypothesis', 'candidate',
             'simulation', 'guardian_review', 'promoted', 'killed', 'parked'
@@ -56,6 +63,13 @@ class CandidateService:
             if new_status == 'killed' and not kill_rationale:
                 raise ValueError("Kill rationale required when killing a candidate")
 
+            previous = await conn.fetchrow(
+                "SELECT status, program_id FROM candidates WHERE id = $1",
+                candidate_id,
+            )
+            previous_status = previous["status"] if previous else None
+            program_id = str(previous["program_id"]) if previous else None
+
             await conn.execute(
                 """UPDATE candidates 
                    SET status = $1, 
@@ -66,6 +80,35 @@ class CandidateService:
                    WHERE id = $4""",
                 new_status, kill_rationale, user_id, candidate_id
             )
+
+            # Log the transition (PR #8) and broadcast a websocket event.
+            if previous_status is not None and previous_status != new_status:
+                await conn.execute(
+                    """INSERT INTO candidate_transitions
+                           (id, candidate_id, from_status, to_status,
+                            trigger_type, trigger_id, rationale, created_by)
+                       VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7)""",
+                    candidate_id,
+                    previous_status,
+                    new_status,
+                    trigger_type,
+                    trigger_id,
+                    rationale or kill_rationale,
+                    user_id,
+                )
+                if program_id:
+                    try:
+                        from .websocket_manager import program_event_broadcaster
+                        await program_event_broadcaster.broadcast_candidate_status_changed(
+                            program_id=program_id,
+                            candidate_id=candidate_id,
+                            old_status=previous_status,
+                            new_status=new_status,
+                            trigger_type=trigger_type,
+                            rationale=rationale or kill_rationale,
+                        )
+                    except Exception:  # pragma: no cover - defensive
+                        pass
 
             row = await conn.fetchrow("SELECT * FROM candidates WHERE id = $1", candidate_id)
             return dict(row)

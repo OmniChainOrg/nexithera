@@ -226,3 +226,36 @@ async def generate_report(review_id: str, payload: ReportRequest) -> Dict[str, A
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
+
+
+# ---------------------------------------------------------------------------
+# PR #8: Bulk decisions for pipeline review
+# ---------------------------------------------------------------------------
+class BulkDecisionRequest(BaseModel):
+    candidate_ids: List[str] = Field(..., min_length=1)
+    decision: str
+    decision_rationale: str
+    reviewer_id: str
+    review_type: str = "candidate_review"
+    risk_flags: Optional[List[RiskFlag]] = None
+    reviewer_notes: Optional[str] = None
+
+
+@router.post("/bulk")
+async def bulk_decision(payload: BulkDecisionRequest) -> Dict[str, Any]:
+    """Apply the same Guardian decision (approve/kill/park/...) to many
+    candidates in a single call (PR #8 pipeline review)."""
+    try:
+        return await guardian_service.bulk_decide_candidates(
+            candidate_ids=payload.candidate_ids,
+            decision=payload.decision,
+            decision_rationale=payload.decision_rationale,
+            reviewer_id=payload.reviewer_id,
+            review_type=payload.review_type,
+            risk_flags=[rf.model_dump() for rf in payload.risk_flags]
+            if payload.risk_flags
+            else None,
+            reviewer_notes=payload.reviewer_notes,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))

@@ -117,6 +117,12 @@ async def test_kill_candidate_with_rationale():
         _build_db_mock(
             mock_db,
             fetchrow_side_effect=[
+                # 1) lookup of previous status / program_id
+                {
+                    'status': 'candidate',
+                    'program_id': 'prog_123',
+                },
+                # 2) final SELECT * after update
                 {
                     'id': 'cand_123',
                     'name': 'BRCA1 inhibitor',

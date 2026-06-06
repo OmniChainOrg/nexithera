@@ -90,3 +90,29 @@ async def list_agents():
             "SELECT id, name, role, description, is_active FROM agents ORDER BY name"
         )
         return {"agents": [dict(r) for r in rows]}
+
+
+# ---------------------------------------------------------------------------
+# PR #8: Target Discovery
+# ---------------------------------------------------------------------------
+class TargetDiscoveryRequest(BaseModel):
+    program_id: str
+    disease_name: Optional[str] = None
+    top_k: int = 10
+
+
+@router.post("/discover-targets")
+async def discover_targets(request: TargetDiscoveryRequest):
+    """Run the Target Discovery Agent for a program (PR #8).
+
+    Returns a ranked list of novel, under-supported targets with proposed
+    hypotheses and a recommended next experiment.
+    """
+    try:
+        return await agent_orchestrator.discover_targets(
+            program_id=request.program_id,
+            disease_name=request.disease_name,
+            top_k=request.top_k,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))

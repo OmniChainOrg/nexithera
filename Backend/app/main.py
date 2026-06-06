@@ -14,6 +14,7 @@ from .api import (
     guardian,
     simulations,
     advanced_simulations,
+    websocket,
 )
 
 @asynccontextmanager
@@ -55,6 +56,9 @@ app.include_router(agents.router, prefix="/api/v1")
 app.include_router(guardian.router, prefix="/api/v1")
 app.include_router(simulations.router, prefix="/api/v1")
 app.include_router(advanced_simulations.router, prefix="/api/v1")
+# WebSocket routes are mounted at the root (no /api/v1 prefix) since the
+# frontend already speaks `/ws/program/{program_id}` (PR #8).
+app.include_router(websocket.router)
 
 @app.get("/")
 async def root():

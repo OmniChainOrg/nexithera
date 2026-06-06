@@ -1,9 +1,12 @@
 import uuid
+from typing import Optional
 
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel, Field
 
 from ..core.database import db
 from ..schemas.program import ProgramCreate, ProgramResponse
+from ..services.pipeline_service import pipeline_service
 
 router = APIRouter(prefix="/programs", tags=["programs"])
 
@@ -40,4 +43,55 @@ async def get_program(program_id: str):
     if not row:
         raise HTTPException(status_code=404, detail="Program not found")
     
+    return dict(row)
+
+
+# ---------------------------------------------------------------------------
+# PR #8: Pipeline view + threshold configuration
+# ---------------------------------------------------------------------------
+class PipelineThresholdsUpdate(BaseModel):
+    auto_promote_threshold: Optional[float] = Field(None, ge=0.0, le=1.0)
+    auto_kill_threshold: Optional[float] = Field(None, ge=0.0, le=1.0)
+
+
+@router.get("/{program_id}/pipeline")
+async def get_program_pipeline(program_id: str):
+    """Return all candidates in a program with status, latest scorecard,
+    pending Guardian actions, and recommended next step (PR #8)."""
+    try:
+        return await pipeline_service.get_program_pipeline(program_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+
+
+@router.patch("/{program_id}/thresholds")
+async def update_pipeline_thresholds(
+    program_id: str, payload: PipelineThresholdsUpdate
+):
+    """Configure auto_promote / auto_kill thresholds for a program."""
+    if (
+        payload.auto_promote_threshold is None
+        and payload.auto_kill_threshold is None
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="At least one threshold must be provided.",
+        )
+    pool = await db.get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            """UPDATE programs
+                   SET auto_promote_threshold =
+                           COALESCE($2, auto_promote_threshold),
+                       auto_kill_threshold =
+                           COALESCE($3, auto_kill_threshold),
+                       updated_at = NOW()
+                   WHERE id = $1
+               RETURNING id, name, auto_promote_threshold, auto_kill_threshold""",
+            program_id,
+            payload.auto_promote_threshold,
+            payload.auto_kill_threshold,
+        )
+    if not row:
+        raise HTTPException(status_code=404, detail="Program not found")
     return dict(row)
