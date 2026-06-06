@@ -416,7 +416,8 @@ class Database:
                     candidate_id UUID REFERENCES candidates(id),
                     run_type TEXT NOT NULL CHECK (run_type IN (
                         'target_assessment', 'evidence_synthesis', 'simulation_critique',
-                        'literature_extraction', 'safety_check', 'formulation_analysis'
+                        'literature_extraction', 'safety_check', 'formulation_analysis',
+                        'gap_analysis', 'active_learning'
                     )),
                     input_bundle JSONB NOT NULL,
                     output_summary TEXT,
@@ -566,6 +567,166 @@ class Database:
                 "CREATE INDEX IF NOT EXISTS idx_target_discoveries_program "
                 "ON target_discoveries(program_id)"
             )
+
+            # ----------------------------------------------------------------
+            # PR #9: Active Learning + Evidence Gap Analysis
+            # ----------------------------------------------------------------
+            # Existing databases may have the older agent_runs.run_type CHECK
+            # constraint; widen it to include the two new agent run types.
+            await conn.execute("""
+                DO $$
+                BEGIN
+                    IF EXISTS (
+                        SELECT 1 FROM pg_constraint
+                         WHERE conname = 'agent_runs_run_type_check'
+                    ) THEN
+                        ALTER TABLE agent_runs
+                            DROP CONSTRAINT agent_runs_run_type_check;
+                    END IF;
+                    ALTER TABLE agent_runs
+                        ADD CONSTRAINT agent_runs_run_type_check
+                        CHECK (run_type IN (
+                            'target_assessment', 'evidence_synthesis',
+                            'simulation_critique', 'literature_extraction',
+                            'safety_check', 'formulation_analysis',
+                            'gap_analysis', 'active_learning'
+                        ));
+                END $$;
+            """)
+
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS evidence_gaps (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    program_id UUID NOT NULL
+                        REFERENCES programs(id) ON DELETE CASCADE,
+                    entity_type TEXT,
+                    entity_id UUID REFERENCES bio_entities(id) ON DELETE SET NULL,
+                    related_entity_id UUID REFERENCES bio_entities(id) ON DELETE SET NULL,
+                    hypothesis_id UUID REFERENCES hypotheses(id) ON DELETE SET NULL,
+                    gap_type TEXT NOT NULL CHECK (gap_type IN (
+                        'missing_edge', 'low_confidence',
+                        'contradiction_unresolved', 'missing_dose_response',
+                        'missing_tissue_data', 'missing_timecourse'
+                    )),
+                    description TEXT,
+                    severity REAL NOT NULL CHECK (severity >= 0 AND severity <= 1),
+                    proposed_experiment TEXT,
+                    estimated_information_gain REAL,
+                    resolved BOOLEAN NOT NULL DEFAULT FALSE,
+                    agent_run_id UUID REFERENCES agent_runs(id),
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    resolved_at TIMESTAMPTZ
+                )
+            """)
+
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS proposed_experiments (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    program_id UUID REFERENCES programs(id) ON DELETE CASCADE,
+                    hypothesis_id UUID REFERENCES hypotheses(id) ON DELETE CASCADE,
+                    candidate_id UUID REFERENCES candidates(id) ON DELETE CASCADE,
+                    gap_id UUID REFERENCES evidence_gaps(id) ON DELETE SET NULL,
+                    agent_run_id UUID REFERENCES agent_runs(id),
+                    experiment_type TEXT NOT NULL CHECK (experiment_type IN (
+                        'literature_mining', 'in_silico_simulation',
+                        'in_vitro_assay', 'in_vivo_model',
+                        'biomarker_analysis', 'omics_profiling'
+                    )),
+                    template_id TEXT NOT NULL,
+                    description TEXT NOT NULL,
+                    expected_outcomes JSONB NOT NULL DEFAULT '{}',
+                    prior_entropy REAL,
+                    expected_posterior_entropy REAL,
+                    information_gain REAL NOT NULL,
+                    cost_estimate REAL,
+                    duration_days INTEGER,
+                    value_per_unit_cost REAL,
+                    priority INTEGER NOT NULL CHECK (priority >= 1 AND priority <= 10),
+                    status TEXT NOT NULL DEFAULT 'proposed' CHECK (status IN (
+                        'proposed', 'queued', 'running', 'completed',
+                        'cancelled', 'rejected'
+                    )),
+                    created_by UUID REFERENCES users(id),
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                )
+            """)
+
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS experiment_outcomes (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    proposed_experiment_id UUID NOT NULL
+                        REFERENCES proposed_experiments(id) ON DELETE CASCADE,
+                    conducted_by UUID REFERENCES users(id),
+                    conducted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    result_summary TEXT,
+                    result_data JSONB DEFAULT '{}',
+                    prior_confidence REAL,
+                    updated_confidence REAL,
+                    information_gain_observed REAL,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                )
+            """)
+
+            await conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_evidence_gaps_program "
+                "ON evidence_gaps(program_id)"
+            )
+            await conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_evidence_gaps_severity "
+                "ON evidence_gaps(severity DESC)"
+            )
+            await conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_evidence_gaps_resolved "
+                "ON evidence_gaps(resolved)"
+            )
+            await conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_proposed_experiments_program "
+                "ON proposed_experiments(program_id)"
+            )
+            await conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_proposed_experiments_priority "
+                "ON proposed_experiments(priority ASC)"
+            )
+            await conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_proposed_experiments_info_gain "
+                "ON proposed_experiments(information_gain DESC)"
+            )
+            await conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_proposed_experiments_hypothesis "
+                "ON proposed_experiments(hypothesis_id)"
+            )
+            await conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_experiment_outcomes_experiment "
+                "ON experiment_outcomes(proposed_experiment_id)"
+            )
+
+            # Reuse the shared updated_at trigger for proposed_experiments.
+            await conn.execute(
+                "DROP TRIGGER IF EXISTS update_proposed_experiments_updated_at "
+                "ON proposed_experiments"
+            )
+            await conn.execute("""
+                CREATE TRIGGER update_proposed_experiments_updated_at
+                    BEFORE UPDATE ON proposed_experiments
+                    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column()
+            """)
+
+            # Seed PR #9 agents (idempotent).
+            await conn.execute("""
+                INSERT INTO agents (name, role, description, system_prompt, is_active)
+                VALUES
+                    ('Gap Analysis Agent', 'gap_analysis',
+                     'Systematically scans the evidence graph for missing edges, low-confidence edges, and unresolved contradictions; scores each gap by severity = impact × uncertainty.',
+                     'You are a rigorous evidence auditor. Identify weaknesses in the evidence graph that materially affect active hypotheses and candidates. Do not invent evidence. Do not reason about clinical trials or forecasting.',
+                     TRUE),
+                    ('Active Learning Agent', 'active_learning',
+                     'Proposes experiments that maximize information gain (prior_entropy − expected_posterior_entropy); supports cost-weighted ranking and only emits experiments drawn from a fixed template library.',
+                     'You are an active-learning planner. For each gap or hypothesis, enumerate experiments from the template library and rank by information gain per unit cost. Never invent free-form experiments. Preclinical only.',
+                     TRUE)
+                ON CONFLICT (name) DO NOTHING
+            """)
+
 
             # ----------------------------------------------------------------
             # Guardian review system (PR #5)

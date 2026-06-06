@@ -7,6 +7,8 @@ from ..agents.oncology_agent import OncologyImmunotherapyAgent
 from ..agents.evidence_synthesizer_agent import EvidenceSynthesizerAgent
 from ..agents.simulation_critic_agent import SimulationCriticAgent
 from ..agents.target_discovery_agent import TargetDiscoveryAgent
+from ..agents.gap_analysis_agent import GapAnalysisAgent
+from ..agents.active_learning_agent import ActiveLearningAgent
 
 # Agent instances (in production, these would be loaded from DB with prompts)
 AGENTS = {}
@@ -44,6 +46,10 @@ async def get_or_create_agent(agent_name: str):
         agent = SimulationCriticAgent(agent_id)
     elif agent_name == "Target Discovery Agent":
         agent = TargetDiscoveryAgent(agent_id)
+    elif agent_name == "Gap Analysis Agent":
+        agent = GapAnalysisAgent(agent_id)
+    elif agent_name == "Active Learning Agent":
+        agent = ActiveLearningAgent(agent_id)
     else:
         raise ValueError(f"Unknown agent: {agent_name}")
     
