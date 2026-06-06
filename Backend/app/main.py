@@ -15,6 +15,7 @@ from .api import (
     simulations,
     advanced_simulations,
     analysis,
+    forecast,
     websocket,
 )
 
@@ -58,6 +59,7 @@ app.include_router(guardian.router, prefix="/api/v1")
 app.include_router(simulations.router, prefix="/api/v1")
 app.include_router(advanced_simulations.router, prefix="/api/v1")
 app.include_router(analysis.router, prefix="/api/v1")
+app.include_router(forecast.router, prefix="/api/v1")
 # WebSocket routes are mounted at the root (no /api/v1 prefix) since the
 # frontend already speaks `/ws/program/{program_id}` (PR #8).
 app.include_router(websocket.router)
