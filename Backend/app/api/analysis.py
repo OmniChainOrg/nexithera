@@ -9,6 +9,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from ..services.active_learning_service import active_learning_service
+from ..services.partnerability_service import partnerability_service
 
 
 router = APIRouter(prefix="/analysis", tags=["analysis"])
@@ -173,3 +174,123 @@ async def what_if(request: WhatIfRequest) -> Dict[str, Any]:
             else None
         ),
     }
+
+
+# ---------------------------------------------------------------------------
+# PR #10 — Partnerability + IND Readiness
+# ---------------------------------------------------------------------------
+class CandidateAnalysisRequest(BaseModel):
+    candidate_id: str
+
+    @classmethod
+    def _validate_uuid(cls, value: str) -> str:
+        try:
+            uuid.UUID(value)
+        except (ValueError, AttributeError, TypeError):
+            raise HTTPException(
+                status_code=400,
+                detail="candidate_id must be a valid UUID",
+            )
+        return value
+
+
+class PartnerabilityRequest(CandidateAnalysisRequest):
+    assessed_by: Optional[str] = None
+
+
+class INDChecklistUpdateRequest(BaseModel):
+    status: str = Field(..., description="not_started|in_progress|complete|waived|failed")
+    evidence_uri: Optional[str] = None
+    notes: Optional[str] = None
+    updated_by: Optional[str] = None
+
+
+def _validate_uuid_or_400(value: str, name: str) -> None:
+    try:
+        uuid.UUID(value)
+    except (ValueError, AttributeError, TypeError):
+        raise HTTPException(
+            status_code=400, detail=f"{name} must be a valid UUID"
+        )
+
+
+@router.post("/competitive-landscape")
+async def competitive_landscape(
+    request: CandidateAnalysisRequest,
+) -> Dict[str, Any]:
+    """Run competitive landscape analysis for a candidate."""
+    _validate_uuid_or_400(request.candidate_id, "candidate_id")
+    try:
+        return await partnerability_service.run_competitive_landscape(
+            request.candidate_id
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+
+
+@router.post("/ip-position")
+async def ip_position(
+    request: CandidateAnalysisRequest,
+) -> Dict[str, Any]:
+    """Estimate freedom-to-operate and IP strength for a candidate."""
+    _validate_uuid_or_400(request.candidate_id, "candidate_id")
+    try:
+        return await partnerability_service.run_ip_position(
+            request.candidate_id
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+
+
+@router.post("/ind-readiness")
+async def ind_readiness(
+    request: CandidateAnalysisRequest,
+) -> Dict[str, Any]:
+    """Assess IND readiness against the seeded checklist."""
+    _validate_uuid_or_400(request.candidate_id, "candidate_id")
+    try:
+        return await partnerability_service.run_ind_readiness(
+            request.candidate_id
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+
+
+@router.post("/partnerability")
+async def partnerability(
+    request: PartnerabilityRequest,
+) -> Dict[str, Any]:
+    """Calculate composite partnerability score for a candidate."""
+    _validate_uuid_or_400(request.candidate_id, "candidate_id")
+    try:
+        return await partnerability_service.assess_partnerability(
+            candidate_id=request.candidate_id,
+            assessed_by=request.assessed_by,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+
+
+@router.post("/ind-checklist/{candidate_id}/{item_id}")
+async def update_ind_checklist_item(
+    candidate_id: str,
+    item_id: str,
+    request: INDChecklistUpdateRequest,
+) -> Dict[str, Any]:
+    """Update a single IND checklist item for a candidate."""
+    _validate_uuid_or_400(candidate_id, "candidate_id")
+    _validate_uuid_or_400(item_id, "item_id")
+    try:
+        return await partnerability_service.update_checklist_item(
+            candidate_id=candidate_id,
+            item_id=item_id,
+            status=request.status,
+            evidence_uri=request.evidence_uri,
+            notes=request.notes,
+            updated_by=request.updated_by,
+        )
+    except ValueError as exc:
+        msg = str(exc)
+        if msg.startswith("Invalid IND checklist status"):
+            raise HTTPException(status_code=400, detail=msg)
+        raise HTTPException(status_code=404, detail=msg)
