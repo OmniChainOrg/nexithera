@@ -158,6 +158,9 @@ export function useProgramEvents(
       }
     }
 
+    const payload = message.payload ?? {};
+    const payloadEntityId = typeof payload.entity_id === 'string' ? payload.entity_id : undefined;
+
     // Cache invalidation by event type.
     switch (message.event_type) {
       case 'candidate_created':
@@ -176,6 +179,25 @@ export function useProgramEvents(
         break;
       case 'evidence_edge_added':
         queryClient.invalidateQueries({ queryKey: queryKeys.evidence.graph(programId) });
+        break;
+      case 'target_discovery.new':
+        queryClient.invalidateQueries({ queryKey: queryKeys.targets.discover(programId) });
+        break;
+      case 'gap_analysis.completed':
+        queryClient.invalidateQueries({ queryKey: queryKeys.analysis.gaps(programId) });
+        break;
+      case 'experiment.status_changed':
+      case 'experiment.completed':
+        queryClient.invalidateQueries({ queryKey: queryKeys.analysis.experiments(programId) });
+        if (payloadEntityId) {
+          queryClient.invalidateQueries({ queryKey: queryKeys.analysis.beliefTimeline(payloadEntityId) });
+        }
+        break;
+      case 'guardian.bulk_complete':
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.guardian.reviews({ program_id: programId }),
+        });
+        queryClient.invalidateQueries({ queryKey: queryKeys.candidates.forProgram(programId) });
         break;
     }
   }, [lastMessage, programId, desktopEnabled, pushNotification, queryClient]);
@@ -219,6 +241,16 @@ function describeEvent(msg: ProgramEventMessage): {
       return { title: 'Agent run completed', body: msg.entity_id, level: 'success' };
     case 'evidence_edge_added':
       return { title: 'New evidence added', body: msg.entity_id, level: 'info' };
+    case 'target_discovery.new':
+      return { title: 'New target discovered', body: msg.entity_id, level: 'success' };
+    case 'gap_analysis.completed':
+      return { title: 'Gap analysis completed', body: msg.entity_id, level: 'success' };
+    case 'experiment.status_changed':
+      return { title: 'Experiment status changed', body: msg.new_status ?? msg.entity_id, level: 'info' };
+    case 'experiment.completed':
+      return { title: 'Experiment completed', body: msg.entity_id, level: 'success' };
+    case 'guardian.bulk_complete':
+      return { title: 'Bulk Guardian action complete', body: msg.entity_id, level: 'success' };
     default:
       return { title: 'Update received', body: msg.entity_id, level: 'info' };
   }

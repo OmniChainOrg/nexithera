@@ -30,6 +30,10 @@ const PRIMARY_NAV: NavItem[] = [
   { href: '/', label: 'Overview', icon: Home },
   { href: '/evidence-graph', label: 'Evidence Graph', icon: Network },
   { href: '/agent-runs', label: 'Agent Runs', icon: Activity },
+  { href: '/target-discovery', label: 'Targets', icon: Sparkles },
+  { href: '/gaps', label: 'Gaps', icon: Network },
+  { href: '/experiments', label: 'Experiments', icon: Beaker },
+  { href: '/pipeline/bulk', label: 'Bulk Review', icon: ShieldCheck },
   { href: '/settings', label: 'Settings', icon: Settings },
 ];
 

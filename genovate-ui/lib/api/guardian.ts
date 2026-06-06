@@ -4,6 +4,8 @@ import type {
   GuardianReview,
   GuardianReviewStatus,
   RiskFlag,
+  GuardianBulkRequest,
+  GuardianBulkResponse,
 } from '@/lib/types/genovate';
 
 export interface ListReviewsParams {
@@ -31,4 +33,5 @@ export const guardianApi = {
     api.get<{ url: string }>(`/guardian/reviews/${encodeURIComponent(id)}/signed-report`, {
       signal,
     }),
+  bulk: (input: GuardianBulkRequest) => api.post<GuardianBulkResponse>('/guardian/bulk', input),
 };

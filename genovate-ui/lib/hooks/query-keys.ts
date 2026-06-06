@@ -33,6 +33,14 @@ export const queryKeys = {
     reviews: (params: Record<string, unknown>) => ['guardian', 'reviews', params] as const,
     review: (id: string) => ['guardian', 'reviews', id] as const,
   },
+  targets: {
+    discover: (programId: string) => ['targets', 'discover', programId] as const,
+  },
+  analysis: {
+    gaps: (programId: string) => ['analysis', 'gaps', programId] as const,
+    experiments: (programId: string) => ['analysis', 'experiments', programId] as const,
+    beliefTimeline: (entityId: string) => ['analysis', 'belief', entityId] as const,
+  },
   simulations: {
     runs: (params: Record<string, unknown>) => ['simulations', 'runs', params] as const,
     run: (id: string) => ['simulations', 'runs', id] as const,
