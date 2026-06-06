@@ -39,7 +39,7 @@ class MockWebSocket {
 
 beforeEach(() => {
   MockWebSocket.instances = [];
-  // @ts-expect-error stubbing for tests
+  // @ts-ignore stubbing for tests
   globalThis.window = globalThis.window ?? {};
   // @ts-expect-error stubbing for tests
   globalThis.window.WebSocket = MockWebSocket;

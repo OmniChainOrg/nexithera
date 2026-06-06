@@ -1,5 +1,10 @@
+'use client';
+
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { HypothesisVersionDrawer } from '@/components/hypotheses/hypothesis-version-drawer';
 import { ConfidenceBadge } from '@/lib/utils/confidence-badge';
 import { formatRelative, titleCase } from '@/lib/utils/formatters';
 import type { Hypothesis, HypothesisStatus } from '@/lib/types/genovate';
@@ -13,6 +18,7 @@ const statusVariant: Record<HypothesisStatus, 'default' | 'secondary' | 'destruc
 };
 
 export function HypothesisCard({ hypothesis }: { hypothesis: Hypothesis }) {
+  const [timelineOpen, setTimelineOpen] = useState(false);
   const total = hypothesis.supporting_evidence_count + hypothesis.contradicting_evidence_count;
   const supportPct = total === 0 ? 0 : hypothesis.supporting_evidence_count / total;
 
@@ -31,20 +37,16 @@ export function HypothesisCard({ hypothesis }: { hypothesis: Hypothesis }) {
         </div>
       </CardHeader>
       <CardContent className="space-y-2">
-        <div
-          className="h-2 w-full overflow-hidden rounded-full bg-destructive/20"
-          aria-label={`${Math.round(supportPct * 100)}% supporting evidence`}
-        >
-          <div
-            className="h-full bg-confidence-high"
-            style={{ width: `${Math.round(supportPct * 100)}%` }}
-          />
+        <div className="h-2 w-full overflow-hidden rounded-full bg-destructive/20" aria-label={`${Math.round(supportPct * 100)}% supporting evidence`}>
+          <div className="h-full bg-confidence-high" style={{ width: `${Math.round(supportPct * 100)}%` }} />
         </div>
         <div className="flex justify-between text-xs text-muted-foreground">
           <span>{hypothesis.supporting_evidence_count} supporting</span>
           <span>{hypothesis.contradicting_evidence_count} contradicting</span>
         </div>
+        <Button size="sm" variant="outline" onClick={() => setTimelineOpen(true)}>View timeline</Button>
       </CardContent>
+      <HypothesisVersionDrawer hypothesisId={hypothesis.id} open={timelineOpen} onOpenChange={setTimelineOpen} />
     </Card>
   );
 }

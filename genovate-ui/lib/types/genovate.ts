@@ -219,3 +219,121 @@ export interface PaginatedResponse<T> {
   page?: number;
   page_size?: number;
 }
+
+export interface DiscoveredTarget {
+  id?: string;
+  rank: number;
+  target_id?: string;
+  target_name: string;
+  opportunity_score: number;
+  confidence: number;
+  proposed_hypothesis: string;
+  rationale?: string;
+  run_id?: string;
+  program_id?: string;
+  created_at?: ISODateString;
+}
+
+export interface DiscoverTargetsRequest {
+  program_id: string;
+  max_results?: number;
+  therapeutic_area?: string;
+}
+
+export interface DiscoverTargetsResponse {
+  run_id: string;
+  program_id: string;
+  targets: DiscoveredTarget[];
+  generated_at: ISODateString;
+}
+
+export interface EvidenceGap {
+  id?: string;
+  target_id: string;
+  target_name: string;
+  disease_id: string;
+  disease_name: string;
+  evidence_quality: number;
+  severity: number;
+  gap_type: 'missing_edge' | 'low_confidence' | 'contradiction' | string;
+  proposed_experiment_id?: string | null;
+  details?: string;
+}
+
+export interface GapAnalysisRequest {
+  program_id: string;
+  min_severity?: number;
+}
+
+export interface GapAnalysisResponse {
+  program_id: string;
+  gaps: EvidenceGap[];
+  targets: { id: string; name: string }[];
+  diseases: { id: string; name: string }[];
+  generated_at: ISODateString;
+}
+
+export type ProposedExperimentStatus = 'proposed' | 'in_progress' | 'completed' | 'cancelled' | 'dismissed';
+
+export interface ProposedExperiment {
+  id: string;
+  description: string;
+  information_gain: number;
+  cost: number;
+  duration_days: number;
+  priority: number;
+  status: ProposedExperimentStatus;
+  if_positive?: string;
+  if_negative?: string;
+  target_id?: string;
+  hypothesis_id?: string;
+  program_id?: string;
+  created_at: ISODateString;
+  updated_at?: ISODateString;
+}
+
+export interface NextExperimentsRequest {
+  program_id: string;
+  limit?: number;
+  target_id?: string;
+}
+
+export interface ExperimentOutcome {
+  experiment_id: string;
+  result: 'positive' | 'negative' | 'inconclusive';
+  observed_confidence_delta?: number;
+  notes?: string;
+}
+
+export interface BeliefTimelinePoint {
+  timestamp: ISODateString;
+  confidence: number;
+  uncertainty_low?: number;
+  uncertainty_high?: number;
+  experiment_id?: string;
+  experiment_name?: string;
+  outcome?: 'positive' | 'negative' | 'inconclusive';
+  confidence_delta?: number;
+  agent_run_id?: string;
+}
+
+export interface BeliefTimeline {
+  entity_id: string;
+  entity_type: 'candidate' | 'hypothesis';
+  points: BeliefTimelinePoint[];
+}
+
+export type GuardianBulkAction = 'approve' | 'kill' | 'park';
+
+export interface GuardianBulkRequest {
+  action: GuardianBulkAction;
+  review_ids: string[];
+  note?: string;
+}
+
+export interface GuardianBulkResponse {
+  approved_count: number;
+  killed_count: number;
+  parked_count: number;
+  failed_ids: string[];
+}

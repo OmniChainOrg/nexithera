@@ -46,7 +46,12 @@ export type ProgramEventType =
   | 'candidate_status_changed'
   | 'review_created'
   | 'agent_run_completed'
-  | 'evidence_edge_added';
+  | 'evidence_edge_added'
+  | 'target_discovery.new'
+  | 'gap_analysis.completed'
+  | 'experiment.status_changed'
+  | 'experiment.completed'
+  | 'guardian.bulk_complete';
 
 export interface ProgramEventMessage {
   event_type: ProgramEventType;
