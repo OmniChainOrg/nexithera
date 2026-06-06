@@ -52,7 +52,8 @@ export type ProgramEventType =
   | 'experiment.status_changed'
   | 'experiment.completed'
   | 'guardian.bulk_complete'
-  | 'ind_readiness.updated';
+  | 'ind_readiness.updated'
+  | 'forecast.updated';
 
 export interface ProgramEventMessage {
   event_type: ProgramEventType;

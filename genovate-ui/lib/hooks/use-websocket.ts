@@ -199,6 +199,25 @@ export function useProgramEvents(
         });
         queryClient.invalidateQueries({ queryKey: queryKeys.candidates.forProgram(programId) });
         break;
+      case 'forecast.updated':
+        // payload may contain { candidate_id } — invalidate that candidate's
+        // forecast cache, otherwise wildcard-invalidate clinical forecasts.
+        {
+          const candidateId =
+            (lastMessage.payload?.candidate_id as string | undefined) ?? lastMessage.entity_id;
+          if (candidateId) {
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.forecast.clinical(candidateId),
+              exact: false,
+            });
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.forecast.history(candidateId),
+            });
+          } else {
+            queryClient.invalidateQueries({ queryKey: ['forecast'] });
+          }
+        }
+        break;
     }
   }, [lastMessage, programId, desktopEnabled, pushNotification, queryClient]);
 
@@ -251,6 +270,18 @@ function describeEvent(msg: ProgramEventMessage): {
       return { title: 'Experiment completed', body: msg.entity_id, level: 'success' };
     case 'guardian.bulk_complete':
       return { title: 'Bulk Guardian action complete', body: msg.entity_id, level: 'success' };
+    case 'forecast.updated': {
+      const prev = msg.payload?.previous_probability as number | undefined;
+      const next = msg.payload?.new_probability as number | undefined;
+      const trigger = (msg.payload?.trigger as string | undefined) ?? 'recalculation';
+      const fmt = (v?: number) =>
+        typeof v === 'number' ? `${Math.round(v * 100)}%` : '—';
+      return {
+        title: 'Forecast updated',
+        body: `${fmt(prev)} → ${fmt(next)} (${trigger})`,
+        level: 'info',
+      };
+    }
     default:
       return { title: 'Update received', body: msg.entity_id, level: 'info' };
   }
