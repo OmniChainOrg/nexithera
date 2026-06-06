@@ -40,6 +40,8 @@ export const queryKeys = {
     gaps: (programId: string) => ['analysis', 'gaps', programId] as const,
     experiments: (programId: string) => ['analysis', 'experiments', programId] as const,
     beliefTimeline: (entityId: string) => ['analysis', 'belief', entityId] as const,
+    partnerability: (candidateId: string) => ['analysis', 'partnerability', candidateId] as const,
+    indReadiness: (candidateId: string) => ['analysis', 'ind-readiness', candidateId] as const,
   },
   simulations: {
     runs: (params: Record<string, unknown>) => ['simulations', 'runs', params] as const,
