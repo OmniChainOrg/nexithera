@@ -81,6 +81,15 @@ class Database:
                     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
                 )
             """)
+            # PR #8: pipeline-automation thresholds (per program)
+            await conn.execute("""
+                ALTER TABLE programs
+                    ADD COLUMN IF NOT EXISTS auto_promote_threshold REAL DEFAULT 0.7
+            """)
+            await conn.execute("""
+                ALTER TABLE programs
+                    ADD COLUMN IF NOT EXISTS auto_kill_threshold REAL DEFAULT 0.3
+            """)
             
             # Zones (epistemic zone references)
             await conn.execute("""
@@ -345,6 +354,8 @@ class Database:
             await conn.execute("CREATE INDEX IF NOT EXISTS idx_scorecards_candidate ON scorecards(candidate_id)")
             await conn.execute("CREATE INDEX IF NOT EXISTS idx_scorecards_overall ON scorecards(overall_score DESC)")
             await conn.execute("CREATE INDEX IF NOT EXISTS idx_candidate_simulations_candidate ON candidate_simulations(candidate_id)")
+            # PR #8: index on hypothesis parent link (versioning)
+            await conn.execute("CREATE INDEX IF NOT EXISTS idx_hypotheses_parent ON hypotheses(parent_hypothesis_id)")
 
             # Shared trigger function for updated_at maintenance
             await conn.execute("""
@@ -504,6 +515,57 @@ class Database:
                      TRUE)
                 ON CONFLICT (name) DO NOTHING
             """)
+
+            # PR #8: seed Target Discovery Agent for opportunity-gap scans
+            await conn.execute("""
+                INSERT INTO agents (name, role, description, system_prompt, is_active)
+                VALUES
+                    ('Target Discovery Agent', 'target_discovery',
+                     'Scans the evidence graph for high-potential, under-supported preclinical targets and ranks them by opportunity gap.',
+                     'You are a preclinical target-discovery scientist. Identify genes/proteins that are biologically plausible drivers of the disease but have weak existing evidence (high impact, high novelty, low evidence strength). Output a ranked list with proposed mechanistic hypotheses and a recommended next experiment. Do not reason about clinical trials, asset outcomes, or forecasting.',
+                     TRUE)
+                ON CONFLICT (name) DO NOTHING
+            """)
+
+            # ----------------------------------------------------------------
+            # PR #8: Preclinical pipeline automation + target discovery
+            # ----------------------------------------------------------------
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS candidate_transitions (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    candidate_id UUID NOT NULL REFERENCES candidates(id) ON DELETE CASCADE,
+                    from_status TEXT,
+                    to_status TEXT NOT NULL,
+                    trigger_type TEXT NOT NULL CHECK (trigger_type IN (
+                        'agent', 'guardian', 'threshold', 'manual'
+                    )),
+                    trigger_id UUID,
+                    rationale TEXT,
+                    created_by UUID REFERENCES users(id),
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                )
+            """)
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS target_discoveries (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    agent_run_id UUID REFERENCES agent_runs(id),
+                    program_id UUID NOT NULL REFERENCES programs(id) ON DELETE CASCADE,
+                    ranked_targets JSONB NOT NULL DEFAULT '[]',
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                )
+            """)
+            await conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_candidate_transitions_candidate "
+                "ON candidate_transitions(candidate_id)"
+            )
+            await conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_candidate_transitions_created "
+                "ON candidate_transitions(created_at DESC)"
+            )
+            await conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_target_discoveries_program "
+                "ON target_discoveries(program_id)"
+            )
 
             # ----------------------------------------------------------------
             # Guardian review system (PR #5)

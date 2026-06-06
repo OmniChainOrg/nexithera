@@ -3,6 +3,7 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 from typing import Optional
 from ..services.candidate_service import candidate_service
+from ..services.pipeline_service import pipeline_service
 
 router = APIRouter(prefix="/candidates", tags=["candidates"])
 
@@ -107,3 +108,22 @@ async def list_candidates_by_program(
     """List all candidates in a program."""
     results = await candidate_service.list_candidates_by_program(program_id, status)
     return {"candidates": results, "count": len(results)}
+
+
+# ---------------------------------------------------------------------------
+# PR #8: Pipeline automation
+# ---------------------------------------------------------------------------
+@router.post("/{candidate_id}/auto-advance")
+async def auto_advance_candidate(candidate_id: str):
+    """Manually trigger the auto-advance pipeline evaluation (normally automatic)."""
+    try:
+        return await pipeline_service.auto_advance(candidate_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+
+
+@router.get("/{candidate_id}/transitions")
+async def list_candidate_transitions(candidate_id: str):
+    """Return the full transition log for a candidate (PR #8)."""
+    transitions = await pipeline_service.list_transitions(candidate_id)
+    return {"candidate_id": candidate_id, "transitions": transitions, "count": len(transitions)}

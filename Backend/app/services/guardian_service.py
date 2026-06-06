@@ -595,5 +595,131 @@ class GuardianService:
                 )
         # simulations / programs: decision recorded only in guardian_reviews
 
+    # ------------------------------------------------------------------
+    # PR #8: Bulk decisions for pipeline review
+    # ------------------------------------------------------------------
+    async def bulk_decide_candidates(
+        self,
+        candidate_ids: List[str],
+        decision: str,
+        decision_rationale: str,
+        reviewer_id: str,
+        review_type: str = "candidate_review",
+        risk_flags: Optional[List[Dict[str, Any]]] = None,
+        reviewer_notes: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Apply the same Guardian decision to multiple candidates.
+
+        Each candidate gets its own immutable ``guardian_reviews`` row
+        (so the audit trail stays per-entity) and its own
+        ``candidate_transitions`` log entry when the decision changes
+        the candidate's status.  Returns a summary with per-candidate
+        results.
+        """
+        # Fail loudly on bad input *before* writing anything.
+        self._validate_review_type(review_type)
+        self._validate_decision(decision, decision_rationale)
+        if not candidate_ids:
+            raise ValueError("bulk_decide_candidates requires candidate_ids")
+
+        results: List[Dict[str, Any]] = []
+        successes = 0
+        for cid in candidate_ids:
+            try:
+                review = await self.create_review(
+                    review_type=review_type,
+                    entity_id=cid,
+                    entity_type="candidate",
+                    reviewer_id=reviewer_id,
+                    decision=decision,
+                    decision_rationale=decision_rationale,
+                    risk_flags=risk_flags,
+                    reviewer_notes=reviewer_notes,
+                )
+                # Log a guardian-triggered candidate_transitions row so the
+                # pipeline-automation audit trail is consistent.
+                await self._log_guardian_transition(
+                    candidate_id=cid,
+                    review_id=str(review["id"]),
+                    decision=decision,
+                    decision_rationale=decision_rationale,
+                    reviewer_id=reviewer_id,
+                )
+                successes += 1
+                results.append(
+                    {
+                        "candidate_id": cid,
+                        "review_id": str(review["id"]),
+                        "status": "ok",
+                    }
+                )
+            except Exception as exc:  # pragma: no cover - defensive
+                # Don't surface internal exception detail (e.g. asyncpg
+                # error strings) to API clients — log it via the result
+                # row's error_type only.  Per-candidate failures are
+                # always non-fatal: the bulk call returns 200 with a
+                # per-row status so the UI can show partial success.
+                results.append(
+                    {
+                        "candidate_id": cid,
+                        "status": "error",
+                        "error": "internal_error",
+                        "error_type": type(exc).__name__,
+                    }
+                )
+
+        return {
+            "decision": decision,
+            "total": len(candidate_ids),
+            "successes": successes,
+            "failures": len(candidate_ids) - successes,
+            "results": results,
+        }
+
+    async def _log_guardian_transition(
+        self,
+        candidate_id: str,
+        review_id: str,
+        decision: str,
+        decision_rationale: str,
+        reviewer_id: str,
+    ) -> None:
+        new_status = _CANDIDATE_STATUS_BY_DECISION.get(decision)
+        if new_status is None:
+            return
+        pool = await db.get_pool()
+        async with pool.acquire() as conn:
+            current = await conn.fetchrow(
+                "SELECT status, program_id FROM candidates WHERE id = $1",
+                candidate_id,
+            )
+            if not current or current["status"] == new_status:
+                return
+            await conn.execute(
+                """INSERT INTO candidate_transitions
+                       (id, candidate_id, from_status, to_status,
+                        trigger_type, trigger_id, rationale, created_by)
+                   VALUES (gen_random_uuid(), $1, $2, $3,
+                           'guardian', $4, $5, $6)""",
+                candidate_id,
+                current["status"],
+                new_status,
+                review_id,
+                decision_rationale,
+                reviewer_id,
+            )
+            try:
+                from .websocket_manager import program_event_broadcaster
+                await program_event_broadcaster.broadcast_candidate_status_changed(
+                    program_id=str(current["program_id"]),
+                    candidate_id=candidate_id,
+                    old_status=current["status"],
+                    new_status=new_status,
+                    trigger_type="guardian",
+                    rationale=decision_rationale,
+                )
+            except Exception:  # pragma: no cover
+                pass
+
 
 guardian_service = GuardianService()

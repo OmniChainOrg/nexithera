@@ -163,4 +163,99 @@ class HypothesisService:
                 "contradicting_evidence": [dict(r) for r in contradicting]
             }
 
+    # ------------------------------------------------------------------
+    # PR #8: Hypothesis versioning
+    # ------------------------------------------------------------------
+    async def create_version(
+        self,
+        parent_hypothesis_id: str,
+        hypothesis_text: str,
+        created_by: Optional[str] = None,
+        confidence: Optional[float] = None,
+        uncertainty_reason: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Create a new child version of an existing hypothesis.
+
+        The child preserves ``parent_hypothesis_id``, inherits
+        ``program_id`` and ``claim_type`` from the parent, and bumps
+        ``version`` to ``parent.version + 1``.  Older versions are kept
+        intact so the timeline is auditable.
+        """
+        pool = await db.get_pool()
+        async with pool.acquire() as conn:
+            parent = await conn.fetchrow(
+                "SELECT * FROM hypotheses WHERE id = $1",
+                parent_hypothesis_id,
+            )
+            if not parent:
+                raise ValueError(
+                    f"Parent hypothesis not found: {parent_hypothesis_id}"
+                )
+
+            new_id = str(uuid.uuid4())
+            await conn.execute(
+                """INSERT INTO hypotheses
+                       (id, version, hypothesis_text, claim_type, program_id,
+                        parent_hypothesis_id, created_by, confidence,
+                        uncertainty_reason, status)
+                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'draft')""",
+                new_id,
+                int(parent["version"] or 1) + 1,
+                hypothesis_text,
+                parent["claim_type"],
+                parent["program_id"],
+                parent_hypothesis_id,
+                created_by,
+                confidence,
+                uncertainty_reason,
+            )
+
+            # Mark the parent as deprecated so consumers know a child
+            # version supersedes it; older versions remain queryable.
+            await conn.execute(
+                """UPDATE hypotheses
+                       SET status = 'deprecated'
+                       WHERE id = $1
+                         AND status NOT IN ('refuted', 'deprecated')""",
+                parent_hypothesis_id,
+            )
+
+            row = await conn.fetchrow(
+                "SELECT * FROM hypotheses WHERE id = $1", new_id
+            )
+            return dict(row)
+
+    async def get_version_timeline(
+        self, hypothesis_id: str
+    ) -> List[Dict[str, Any]]:
+        """Return the full version timeline (root → leaves) for a hypothesis."""
+        pool = await db.get_pool()
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                WITH RECURSIVE up AS (
+                    SELECT * FROM hypotheses WHERE id = $1
+                    UNION
+                    SELECT h.* FROM hypotheses h
+                      JOIN up ON h.id = up.parent_hypothesis_id
+                ),
+                root AS (
+                    SELECT id FROM up
+                     WHERE parent_hypothesis_id IS NULL
+                     LIMIT 1
+                ),
+                tree AS (
+                    SELECT * FROM hypotheses
+                      WHERE id = (SELECT id FROM root)
+                    UNION
+                    SELECT h.* FROM hypotheses h
+                      JOIN tree ON h.parent_hypothesis_id = tree.id
+                )
+                SELECT * FROM tree
+                ORDER BY version ASC, created_at ASC
+                """,
+                hypothesis_id,
+            )
+            return [dict(r) for r in rows]
+
 hypothesis_service = HypothesisService()

@@ -6,6 +6,7 @@ from ..agents.target_biology_agent import TargetBiologyAgent
 from ..agents.oncology_agent import OncologyImmunotherapyAgent
 from ..agents.evidence_synthesizer_agent import EvidenceSynthesizerAgent
 from ..agents.simulation_critic_agent import SimulationCriticAgent
+from ..agents.target_discovery_agent import TargetDiscoveryAgent
 
 # Agent instances (in production, these would be loaded from DB with prompts)
 AGENTS = {}
@@ -41,6 +42,8 @@ async def get_or_create_agent(agent_name: str):
         agent = EvidenceSynthesizerAgent(agent_id)
     elif agent_name == "Simulation Critic Agent":
         agent = SimulationCriticAgent(agent_id)
+    elif agent_name == "Target Discovery Agent":
+        agent = TargetDiscoveryAgent(agent_id)
     else:
         raise ValueError(f"Unknown agent: {agent_name}")
     
@@ -126,5 +129,54 @@ class AgentOrchestrator:
             run_type="simulation_critique"
         )
         return result
+
+    async def discover_targets(
+        self,
+        program_id: str,
+        disease_name: Optional[str] = None,
+        top_k: int = 10,
+    ) -> Dict[str, Any]:
+        """Run the Target Discovery Agent for a program and persist its
+        ranked target list to ``target_discoveries`` (PR #8)."""
+        import json
+
+        agent = await get_or_create_agent("Target Discovery Agent")
+        result = await agent.run(
+            program_id=program_id,
+            inputs={
+                "program_id": program_id,
+                "disease_name": disease_name,
+                "top_k": top_k,
+            },
+            run_type="target_assessment",
+        )
+
+        ranked = (result.get("output", {}).get("structure", {}) or {}).get(
+            "ranked_targets", []
+        )
+
+        pool = await db.get_pool()
+        async with pool.acquire() as conn:
+            discovery_id = str(uuid.uuid4())
+            await conn.execute(
+                """INSERT INTO target_discoveries
+                       (id, agent_run_id, program_id, ranked_targets)
+                   VALUES ($1, $2, $3, $4)""",
+                discovery_id,
+                result["run_id"],
+                program_id,
+                json.dumps(ranked),
+            )
+
+        return {
+            "discovery_id": discovery_id,
+            "run_id": result["run_id"],
+            "program_id": program_id,
+            "targets": ranked,
+            "summary": result.get("output", {}).get("summary"),
+            "recommended_next_step": result.get("output", {}).get(
+                "recommended_next_step"
+            ),
+        }
 
 agent_orchestrator = AgentOrchestrator()
