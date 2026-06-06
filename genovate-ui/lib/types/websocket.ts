@@ -51,7 +51,8 @@ export type ProgramEventType =
   | 'gap_analysis.completed'
   | 'experiment.status_changed'
   | 'experiment.completed'
-  | 'guardian.bulk_complete';
+  | 'guardian.bulk_complete'
+  | 'ind_readiness.updated';
 
 export interface ProgramEventMessage {
   event_type: ProgramEventType;
