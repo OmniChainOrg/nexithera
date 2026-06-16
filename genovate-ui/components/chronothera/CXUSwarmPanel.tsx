@@ -1,0 +1,3 @@
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import type { ChronoTheraSimulation } from '@/lib/types/chronothera';
+export function CXUSwarmPanel({ simulation }: { simulation?: ChronoTheraSimulation }) { return <Card><CardHeader><CardTitle className="text-base">CXU swarm</CardTitle></CardHeader><CardContent className="grid gap-2 text-sm">{simulation?.epistemic_trace.cxus.map(c=><div key={c.id} className="rounded-md bg-muted/40 p-2"><div className="font-medium">{c.name} · {Math.round(c.confidence*100)}%</div><div className="text-xs text-muted-foreground">{c.question}</div></div>) ?? <p className="text-muted-foreground">No CXU consensus yet.</p>}</CardContent></Card> }

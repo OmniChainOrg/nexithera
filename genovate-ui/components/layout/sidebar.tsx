@@ -9,6 +9,7 @@ import {
   Home,
   LayoutDashboard,
   Microscope,
+  Pill,
   Network,
   Settings,
   ShieldCheck,
@@ -33,6 +34,7 @@ const PRIMARY_NAV: NavItem[] = [
   { href: '/target-discovery', label: 'Targets', icon: Sparkles },
   { href: '/gaps', label: 'Gaps', icon: Network },
   { href: '/experiments', label: 'Experiments', icon: Beaker },
+  { href: '/platform/chronothera', label: 'ChronoThera', icon: Pill },
   { href: '/pipeline/bulk', label: 'Bulk Review', icon: ShieldCheck },
   { href: '/settings', label: 'Settings', icon: Settings },
 ];
