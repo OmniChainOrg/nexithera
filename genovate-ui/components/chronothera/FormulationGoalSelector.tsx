@@ -1,0 +1,2 @@
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+export function FormulationGoalSelector({ objectives, value, onChange }: { objectives:string[]; value:string; onChange:(v:string)=>void }) { return <div><label className="text-xs font-medium">Formulation goal</label><Select value={value} onValueChange={onChange}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{objectives.map(o=><SelectItem key={o} value={o}>{o.replaceAll('_',' ')}</SelectItem>)}</SelectContent></Select></div> }

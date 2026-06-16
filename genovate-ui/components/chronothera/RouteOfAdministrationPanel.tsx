@@ -1,0 +1,2 @@
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+export function RouteOfAdministrationPanel({ routes, value, onChange }: { routes:string[]; value:string; onChange:(v:string)=>void }) { return <div><label className="text-xs font-medium">Route of administration</label><Select value={value} onValueChange={onChange}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{routes.map(r=><SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent></Select></div> }
