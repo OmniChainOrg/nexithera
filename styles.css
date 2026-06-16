@@ -211,3 +211,8 @@ a { text-decoration: none; color: inherit; }
 }
 
 .powered-by { text-align: center; color: #cbd5e1; margin-top: 1rem; }
+
+.platform-item .btn-primary {
+  align-self: flex-start;
+  margin-top: auto;
+}

@@ -1,0 +1,12 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const { runChronoTheraSimulation } = require('../lib/chronothera/engine');
+const base = { assetId: 'metformin-dapagliflozin-dr', formulationGoal: 'Extended-release', apis: [{ name: 'Metformin', doseMg: 500 }], excipients: [{ name: 'HPMC', percentage: 8 }], releaseDurationWeeks: 8, regulatoryBody: 'FDA', routeOfAdministration: 'oral', optimizeExcipientPercentages: true };
+test('rejects simulations with zero APIs', () => assert.throws(() => runChronoTheraSimulation({ ...base, apis: [] }), /At least one API/));
+test('rejects simulations with more than five APIs', () => assert.throws(() => runChronoTheraSimulation({ ...base, apis: [1,2,3,4,5,6].map(i => ({ name: `API ${i}`, doseMg: i })) }), /up to five/));
+test('rejects simulations with no excipients', () => assert.throws(() => runChronoTheraSimulation({ ...base, excipients: [] }), /At least one excipient/));
+test('generates deterministic output for same input', () => assert.deepEqual(runChronoTheraSimulation(base), runChronoTheraSimulation(base)));
+test('returns release profile matching release duration', () => { const sim = runChronoTheraSimulation({ ...base, releaseDurationWeeks: 12 }); assert.equal(sim.releaseProfile.labels.length, 12); assert.equal(sim.releaseProfile.datasets[0].cumulativeRelease.length, 12); });
+test('returns scorecard with all required dimensions', () => { const s = runChronoTheraSimulation(base).scorecard; ['releaseFeasibility','routeCompatibility','excipientCompatibility','pkpdAlignment','stabilityRisk','manufacturability','patientCentricity','regulatoryFit','overallChronoTheraScore'].forEach(k => assert.equal(typeof s[k], 'number')); });
+test('marks Guardian review required for high-risk conditions', () => { const sim = runChronoTheraSimulation({ ...base, assetId: 'mpox-rapid-response', formulationGoal: 'Targeted-delivery', routeOfAdministration: 'IV', releaseDurationWeeks: 20 }); assert.equal(sim.guardianReview.required, true); assert.ok(sim.guardianReview.reasons.length >= 3); });
+test('produces EpistemicOS zones, CXUs, swarm, and provenance', () => { const trace = runChronoTheraSimulation(base).epistemicTrace; assert.ok(trace.zones.length >= 6); assert.ok(trace.cxus.length >= 2); assert.equal(trace.swarm.id, 'CHRONOTHERA_FORMULATION_SWARM'); assert.ok(trace.provenance.inputHash); assert.ok(trace.provenance.outputHash); });
