@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex,nofollow" />
+  <meta name="description" content="Internal ChronoThera formulation and delivery intelligence module for NexiThera." />
+  <title>ChronoThera Internal Module – NexiThera</title>
+  <link rel="icon" type="image/svg+xml" href="/public/Nexithera_Favicon.svg" />
+  <link rel="stylesheet" href="/styles.css" />
+  <link rel="stylesheet" href="/platform/chronothera/chronothera.css" />
+</head>
+<body class="chronothera-page">
+  <header class="navbar">
+    <div class="container nav-container">
+      <a class="logo" href="/">
+        <img src="/public/NexiThera_Logo.svg" alt="NexiThera logo" class="logo-mark" onerror="this.onerror=null;this.src='/public/NexiThera_Logo.png';" />
+        <div class="logo-text">
+          <span>NexiThera</span>
+          <small>Internal Platform</small>
+        </div>
+      </a>
+      <nav aria-label="Internal module context">
+        <ul class="nav-links">
+          <li><a href="/">Public Home</a></li>
+          <li><a href="/#platform">Platform Capability</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="chrono-hero">
+      <div class="container">
+        <p class="eyebrow">Internal Formulation &amp; Delivery Intelligence</p>
+        <h1>ChronoThera™</h1>
+        <p class="hero-lede">Internal NexiThera formulation and delivery decision-support cockpit.</p>
+        <p>
+          ChronoThera supports internal evaluation of formulation strategy, route feasibility, release behavior,
+          PK/PD alignment, manufacturability, patient-centricity, and asset dossier readiness across the portfolio.
+        </p>
+        <p>
+          Powered by EpistemicOS™, each simulation produces a traceable formulation profile, ChronoThera
+          readiness score, CXU map, swarm consensus, and Guardian review status.
+        </p>
+        <p class="internal-banner">
+          Internal research use only. This route is intentionally not linked from public navigation and is marked noindex.
+        </p>
+      </div>
+    </section>
+
+    <section class="container chrono-shell" aria-label="ChronoThera simulation cockpit">
+      <form id="simulation-form" class="chrono-card input-card">
+        <h2>Simulation Inputs</h2>
+        <label>Asset preset<select id="assetId"></select></label>
+        <label>Formulation goal<select id="formulationGoal"></select></label>
+
+        <fieldset>
+          <legend>APIs (up to five)</legend>
+          <div id="apiOptions" class="check-grid"></div>
+          <div id="apiDoses" class="dynamic-inputs"></div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Excipients</legend>
+          <div id="excipientOptions" class="check-grid"></div>
+          <div id="excipientPercentages" class="dynamic-inputs"></div>
+        </fieldset>
+
+        <div class="two-col">
+          <label>Release duration (weeks)<input id="releaseDurationWeeks" type="number" min="1" max="24" value="8" /></label>
+          <label>Regulatory body<select id="regulatoryBody"></select></label>
+        </div>
+        <label>Route of administration<select id="routeOfAdministration"></select></label>
+        <label class="toggle"><input id="optimizeExcipientPercentages" type="checkbox" checked /> Optimize excipient percentages</label>
+        <button class="btn-primary" type="submit">Run simulation</button>
+        <p id="form-error" class="form-error" role="alert"></p>
+      </form>
+
+      <section class="chrono-card output-card">
+        <div class="card-heading">
+          <h2>Release Profile</h2>
+          <button id="exportJson" class="ghost-btn" type="button" disabled>Export JSON</button>
+        </div>
+        <canvas id="releaseChart" width="720" height="340"></canvas>
+        <div id="scorecard" class="score-grid"></div>
+        <p id="disclaimer" class="disclaimer">
+          ChronoThera simulations are preliminary formulation-intelligence outputs for research and planning only.
+          Results are not validated PK/PD predictions, regulatory advice, clinical recommendations, or manufacturing instructions.
+        </p>
+      </section>
+
+      <aside class="chrono-card trace-card">
+        <h2>EpistemicOS Trace</h2>
+        <div id="guardianStatus" class="guardian-status">No simulation yet.</div>
+        <h3>Zones</h3>
+        <ul id="zones"></ul>
+        <h3>CXUs</h3>
+        <div id="cxus"></div>
+        <h3>Swarm</h3>
+        <div id="swarm"></div>
+      </aside>
+    </section>
+
+    <section class="container chrono-card history-card">
+      <h2>Simulation History</h2>
+      <div id="history" class="history-list"></div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer-content">
+      <p>© 2026 NexiThera. ChronoThera outputs are internal research-use planning support.</p>
+    </div>
+  </footer>
+  <script src="/platform/chronothera/chronothera.js"></script>
+</body>
+</html>
