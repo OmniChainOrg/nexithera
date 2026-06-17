@@ -1,0 +1,1 @@
+export function ResearchUseDisclaimer() { return <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200"><strong>Internal research use only.</strong> ChronoThera outputs are decision-support planning artifacts, not validated PK/PD predictions, regulatory advice, clinical recommendations, or manufacturing instructions.</div> }

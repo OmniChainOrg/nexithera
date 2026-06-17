@@ -33,6 +33,17 @@ const server = http.createServer((req, res) => {
   if (requestPath.startsWith('/api/chronothera/')) { handleChronoTheraApi(req, res, requestPath); return; }
   const candidatePath = path.join(root, requestPath);
   if (!candidatePath.startsWith(root)) { res.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8' }); res.end('Forbidden'); return; }
-  fs.stat(candidatePath, (err, stats) => { if (!err && stats.isFile()) { sendFile(candidatePath, res); return; } sendFile(path.join(root, 'index.html'), res); });
+  fs.stat(candidatePath, (err, stats) => {
+    if (!err && stats.isFile()) { sendFile(candidatePath, res); return; }
+    if (!err && stats.isDirectory()) {
+      const indexPath = path.join(candidatePath, 'index.html');
+      fs.stat(indexPath, (indexErr, indexStats) => {
+        if (!indexErr && indexStats.isFile()) { sendFile(indexPath, res); return; }
+        sendFile(path.join(root, 'index.html'), res);
+      });
+      return;
+    }
+    sendFile(path.join(root, 'index.html'), res);
+  });
 });
 server.listen(port, () => { console.log(`NexiThera web service running on port ${port}`); });

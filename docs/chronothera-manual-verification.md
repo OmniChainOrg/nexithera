@@ -1,41 +1,27 @@
 # ChronoThera Manual Verification Checklist
 
-Use this checklist when reviewing the ChronoThera platform module locally.
+ChronoThera is now an internal NexiThera platform module in the React dashboard, not a public static page.
 
-## Static app smoke test
-
-1. Run `npm start` from the repository root.
-2. Open `http://localhost:3000/chronothera.html`.
-3. Confirm the page uses the NexiThera dark visual system and displays the ChronoThera™ headline:
-   "ChronoThera™ optimizes how therapeutic candidates become viable medicines."
-4. Select an asset preset, formulation goal, APIs, excipients, release duration, regulatory body, route, and optimization toggle.
-5. Run a simulation and confirm the release profile chart, scorecard, EpistemicOS trace, CXU list, swarm panel, Guardian review panel, simulation history, and JSON export are visible.
-
-## FastAPI platform API smoke test
-
-1. From the repository root, run `cd Backend && uvicorn app.main:app --reload`.
-2. Open `http://localhost:8000/docs`.
-3. Exercise:
+1. Start the backend API and the Genovate UI.
+2. Open `http://localhost:3000/platform/chronothera` from an internal dashboard session.
+3. Confirm the page displays the internal-use banner and compact scientific cockpit layout.
+4. Confirm the public homepage does not include a ChronoThera navigation item or public “Open ChronoThera” CTA.
+5. Confirm the route has `noindex` metadata through the Next.js page metadata.
+6. Exercise the ChronoThera API calls:
    - `GET /api/v1/chronothera/catalog`
    - `POST /api/v1/chronothera/simulations`
    - `GET /api/v1/chronothera/simulations`
    - `GET /api/v1/chronothera/simulations/{simulation_id}`
-   - `GET /api/v1/chronothera/assets/{asset_id}/formulation-profile`
+   - `GET /api/v1/chronothera/simulations?asset_id={asset_id}`
    - `POST /api/v1/chronothera/simulations/{simulation_id}/guardian-review`
-4. Confirm each result contains score rationales, assumptions, uncertainty, recommendations, next-best steps, EpistemicOS zones, CXUs, swarm consensus, provenance hashes, and Guardian review state.
+7. Run a simulation and verify the release profile, readiness scorecard, EpistemicOS trace, Guardian review, history list, and JSON export.
 
-## Local screenshot capture
+## Manual visual QA checklist
 
-If a headless browser is available locally, capture screenshots with one of these commands:
-
-```bash
-chromium --headless --disable-gpu --window-size=1440,1200 --screenshot=chronothera.png http://localhost:3000/chronothera.html
-```
-
-or:
-
-```bash
-google-chrome --headless --disable-gpu --window-size=1440,1200 --screenshot=chronothera.png http://localhost:3000/chronothera.html
-```
-
-This environment did not provide `chromium`, `chromium-browser`, `google-chrome`, or `playwright`, so automated screenshot capture could not be completed here.
+- Asset context is visible above the fold.
+- Formulation strategy inputs are grouped by workflow stage rather than presented as a marketing hero.
+- Release/exposure chart is labeled as a decision-support output.
+- Scorecard includes rationale, assumptions, uncertainty, and next-best action.
+- EpistemicOS trace shows zones, CXUs, swarm consensus, engine version, and provenance hashes.
+- Guardian panel clearly communicates required/not-required state and trigger reasons.
+- JSON export is positioned as a dossier artifact, not a public simulator download.
