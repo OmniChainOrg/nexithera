@@ -6,6 +6,8 @@ from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
+from .calibration import ConfidenceInterval
+
 
 FormulationObjective = Literal[
     "sustained_release",
@@ -77,6 +79,7 @@ class ReleaseDataset(BaseModel):
     cumulative_release: List[float]
     model: str
     rationale: str
+    pk_precedent_used: bool = False
 
 
 class ReleaseProfile(BaseModel):
@@ -91,6 +94,7 @@ class ScoreExplanation(BaseModel):
     uncertainty: List[str]
     recommendation: str
     next_best_step: str
+    confidence: Optional[ConfidenceInterval] = None
 
 
 class GuardianReviewState(BaseModel):
@@ -100,6 +104,7 @@ class GuardianReviewState(BaseModel):
     reviewer: Optional[str] = None
     notes: Optional[str] = None
     reviewed_at: Optional[datetime] = None
+    risk_tier: Optional[str] = None
 
 
 class ChronoTheraSimulationResult(BaseModel):
@@ -111,8 +116,10 @@ class ChronoTheraSimulationResult(BaseModel):
     release_profile: ReleaseProfile
     scorecard: Dict[str, ScoreExplanation]
     overall_chronothera_score: int
+    overall_confidence: Optional[ConfidenceInterval] = None
     formulation_delivery_profile: Dict[str, Any]
     epistemic_trace: Dict[str, Any]
+    epistemicos_query_status: str = "unavailable"
     guardian_review: GuardianReviewState
     disclaimer: str
 
