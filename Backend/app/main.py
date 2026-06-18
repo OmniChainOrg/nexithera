@@ -27,8 +27,24 @@ async def lifespan(app: FastAPI):
     await db.init()
     await storage.init()
     print("✅ Database and storage initialized")
+
+    # Initialise ChronoThera epistemicos client and inject into service
+    from .clients.epistemicos_client import EpistemicOSClient
+    from .services.chronothera_service import chronothera_service as _ct_service
+
+    _epistemicos_client = EpistemicOSClient()
+    is_live = await _epistemicos_client.health_check()
+    if is_live:
+        _ct_service.epistemicos = _epistemicos_client
+        _ct_service.pk_adapter._client = _epistemicos_client
+        print("✅ EpistemicOS client connected (live mode)")
+    else:
+        print("⚠️  EpistemicOS unreachable; ChronoThera will use synthetic fallback")
+
     yield
+
     # Shutdown
+    await _epistemicos_client.close()
     await db.close()
     print("👋 Shutting down")
 

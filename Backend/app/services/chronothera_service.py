@@ -9,12 +9,14 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import math
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
+from ..schemas.calibration import ConfidenceInterval, FormulationOutcome
 from ..schemas.chronothera import (
     ChronoTheraSimulationRequest,
     ChronoTheraSimulationResult,
@@ -25,7 +27,9 @@ from ..schemas.chronothera import (
     ScoreExplanation,
 )
 
-ENGINE_VERSION = "chronothera-platform-engine-v0.2"
+logger = logging.getLogger(__name__)
+
+ENGINE_VERSION = "chronothera-platform-engine-v0.3"
 DISCLAIMER = (
     "ChronoThera simulations are preliminary formulation-intelligence outputs "
     "for research and planning only. Results are not validated PK/PD predictions, "
@@ -126,8 +130,20 @@ def _has_excipient(request: ChronoTheraSimulationRequest, name: str) -> bool:
 class ChronoTheraService:
     """Deterministic formulation and delivery intelligence service."""
 
-    def __init__(self, persistence_path: Optional[Path] = None) -> None:
+    def __init__(
+        self,
+        persistence_path: Optional[Path] = None,
+        epistemicos_client: Optional[Any] = None,
+    ) -> None:
         self.persistence_path = persistence_path or Path(__file__).resolve().parents[2] / "data" / "chronothera" / "simulations.json"
+        self.epistemicos = epistemicos_client
+
+        # Lazy-import optional components to avoid circular deps at module load
+        from ..utils.pk_precedent_adapter import PKPrecedentAdapter
+        from .formulation_calibrator import get_calibrator
+
+        self.pk_adapter = PKPrecedentAdapter(epistemicos_client)
+        self.calibrator = get_calibrator()
 
     def catalog(self) -> Dict[str, Any]:
         return {
@@ -149,11 +165,12 @@ class ChronoTheraService:
         }
 
     async def run_simulation(self, request: ChronoTheraSimulationRequest) -> ChronoTheraSimulationResult:
-        release_profile = self._generate_release_profile(request)
-        scorecard = self._generate_scorecard(request)
+        release_profile = await self._generate_release_profile(request)
+        scorecard = await self._generate_scorecard(request)
         overall = _clamp(sum(item.score for item in scorecard.values()) / len(scorecard))
+        calibrated_score, overall_confidence = self._compute_calibrated_score(request, overall)
         formulation_delivery_profile = self._build_formulation_delivery_profile(request, scorecard)
-        epistemic_trace = self._build_epistemic_trace(request, release_profile, scorecard, overall)
+        epistemic_trace, epistemicos_status = await self._build_epistemic_trace(request, release_profile, scorecard, overall)
         guardian_review = self._build_guardian_review(request, scorecard, overall)
         input_hash = epistemic_trace["provenance"]["input_hash"]
         created_at = datetime.fromtimestamp(1704067200 + int(input_hash[:8], 16), tz=timezone.utc)
@@ -165,13 +182,17 @@ class ChronoTheraService:
             input=request,
             release_profile=release_profile,
             scorecard=scorecard,
-            overall_chronothera_score=overall,
+            overall_chronothera_score=calibrated_score,
+            overall_confidence=overall_confidence,
             formulation_delivery_profile=formulation_delivery_profile,
             epistemic_trace=epistemic_trace,
+            epistemicos_query_status=epistemicos_status,
             guardian_review=guardian_review,
             disclaimer=DISCLAIMER,
         )
         await self.save_simulation(result)
+        # Fire-and-forget feedback loop (non-blocking)
+        await self._post_to_epistemicos(result)
         return result
 
     async def list_simulations(self, asset_id: Optional[str] = None) -> List[Dict[str, Any]]:
@@ -209,15 +230,24 @@ class ChronoTheraService:
                 return simulation
         return None
 
-    def _generate_release_profile(self, request: ChronoTheraSimulationRequest) -> ReleaseProfile:
+    async def _generate_release_profile(self, request: ChronoTheraSimulationRequest) -> ReleaseProfile:
         labels = [f"Week {week}" for week in range(1, request.release_duration_weeks + 1)]
         datasets: List[ReleaseDataset] = []
         for index, api in enumerate(request.apis):
+            # Look up PK parameters for this API (epistemicos or heuristic)
+            pk_params = await self.pk_adapter.lookup_pk_parameters(
+                api.name,
+                request.formulation_objective,
+                request.route_of_administration,
+            )
+            pk_precedent_used = self.epistemicos is not None
             values = []
             previous = 0.0
             for week in range(1, request.release_duration_weeks + 1):
                 t = week / request.release_duration_weeks
-                value = self._release_curve(request.formulation_objective, t, index)
+                value = self._release_curve_with_pk(
+                    request.formulation_objective, t, index, pk_params
+                )
                 previous = max(previous, min(value, 98.0))
                 values.append(round(previous, 1))
             datasets.append(
@@ -225,7 +255,8 @@ class ChronoTheraService:
                     api=api.name,
                     cumulative_release=values,
                     model=self._release_model_name(request.formulation_objective),
-                    rationale=f"Deterministic placeholder curve for {request.formulation_objective.replace('_', ' ')} research planning.",
+                    rationale=f"PK-informed placeholder curve for {request.formulation_objective.replace('_', ' ')} research planning.",
+                    pk_precedent_used=pk_precedent_used,
                 )
             )
         return ReleaseProfile(labels=labels, datasets=datasets)
@@ -244,6 +275,48 @@ class ChronoTheraService:
             return 100 * (1 - math.exp(-1.75 * t)) + offset
         return 100 * (1 - math.exp(-2.8 * (t**1.25))) + offset
 
+    def _release_curve_with_pk(
+        self,
+        objective: str,
+        t: float,
+        api_index: int,
+        pk_params: Optional[Dict[str, float]],
+    ) -> float:
+        """Release curve modulated by PK parameters.
+
+        When PK parameters are available, ``CL`` and ``Tmax`` are used to
+        adjust the rate and onset of the base curve:
+        - Higher CL → faster clearance → steeper early rise, lower plateau
+        - Higher Tmax → delayed absorption onset
+
+        Falls back to the original heuristic curve when no PK params provided.
+        """
+        if not pk_params:
+            return self._release_curve(objective, t, api_index)
+
+        tmax_hours = pk_params.get("Tmax", 2.0)
+        cl = pk_params.get("CL", 1.0)
+
+        # Normalise Tmax against ~1-week (168 h) horizon → t_delay in [0,1]
+        t_delay = min(tmax_hours / 168.0, 0.3)
+
+        # CL modulation: higher CL shifts the curve leftward (faster)
+        cl_factor = max(0.5, min(2.0, cl))  # clamp to [0.5, 2.0]
+
+        # Shift time axis by Tmax delay for depot / slow-absorption objectives
+        if objective in {"depot_formulation", "sustained_release"}:
+            t_adj = max(0.0, t - t_delay)
+        else:
+            t_adj = t
+
+        base = self._release_curve(objective, t_adj, api_index)
+
+        # Scale plateau by CL: higher clearance → lower steady-state exposure
+        if cl_factor > 1.2:
+            base = base * (1.0 - (cl_factor - 1.0) * 0.1)
+
+        return base
+
     def _release_model_name(self, objective: str) -> str:
         return {
             "depot_formulation": "lagged depot long-tail curve",
@@ -254,7 +327,7 @@ class ChronoTheraService:
             "pegylation_strategy": "PEGylation exposure-support curve",
         }.get(objective, "smooth Weibull-like cumulative curve")
 
-    def _generate_scorecard(self, request: ChronoTheraSimulationRequest) -> Dict[str, ScoreExplanation]:
+    async def _generate_scorecard(self, request: ChronoTheraSimulationRequest) -> Dict[str, ScoreExplanation]:
         asset = self._asset(request.asset_id)
         rapid = bool(asset and "Rapid Response" in asset.category)
         multi_api = len(request.apis) > 1
@@ -289,6 +362,30 @@ class ChronoTheraService:
         recommendation = "Advance to a targeted formulation screen if score is strong; otherwise revise route, excipient strategy, or duration assumptions."
         if score < 65:
             recommendation = f"Improve {label} before using this profile for portfolio planning."
+
+        # Compute confidence interval via calibrator
+        formulation = FormulationOutcome(
+            id="transient",
+            formulation_objective=request.formulation_objective,
+            route=request.route_of_administration,
+            release_duration_weeks=request.release_duration_weeks,
+            apis=[api.name for api in request.apis],
+            excipients=[exc.name for exc in request.excipients],
+            predicted_score=float(score),
+            actual_outcome="success",  # placeholder; calibrator uses this for featurisation only
+        )
+        try:
+            lower, mean, upper = self.calibrator.predict_confidence_interval(
+                formulation, float(score)
+            )
+            ci = ConfidenceInterval(lower=lower, mean=mean, upper=upper)
+        except Exception:  # noqa: BLE001
+            ci = ConfidenceInterval(
+                lower=max(0.0, float(score) - 10.0),
+                mean=float(score),
+                upper=min(100.0, float(score) + 10.0),
+            )
+
         return ScoreExplanation(
             score=score,
             rationale=f"{label.title()} score reflects objective-route fit, excipient strategy, duration burden, and asset context.",
@@ -296,6 +393,7 @@ class ChronoTheraService:
             uncertainty=uncertainty,
             recommendation=recommendation,
             next_best_step=f"Run a focused {label} evidence package: bench compatibility, release assay design, and EpistemicOS evidence review.",
+            confidence=ci,
         )
 
     def _build_formulation_delivery_profile(self, request: ChronoTheraSimulationRequest, scorecard: Dict[str, ScoreExplanation]) -> Dict[str, Any]:
@@ -311,13 +409,13 @@ class ChronoTheraService:
             "preclinical_package_contribution": scorecard["preclinical_package_contribution"].score,
         }
 
-    def _build_epistemic_trace(
+    async def _build_epistemic_trace(
         self,
         request: ChronoTheraSimulationRequest,
         release_profile: ReleaseProfile,
         scorecard: Dict[str, ScoreExplanation],
         overall: int,
-    ) -> Dict[str, Any]:
+    ) -> Tuple[Dict[str, Any], str]:
         input_payload = request.model_dump(mode="json")
         output_payload = {
             "release_profile": release_profile.model_dump(mode="json"),
@@ -327,10 +425,35 @@ class ChronoTheraService:
         input_hash = _hash(input_payload)
         uncertainty = sorted({reason for score in scorecard.values() for reason in score.uncertainty})
         assumptions = sorted({assumption for score in scorecard.values() for assumption in score.assumptions})
-        return {
-            "zone_cluster": ZONE_CLUSTER,
-            "zones": ZONES,
-            "cxus": [
+
+        # Try to fetch live CXU/swarm data from EpistemicOS
+        live_cxus: Optional[List[Dict[str, Any]]] = None
+        live_swarm: Optional[Dict[str, Any]] = None
+        epistemicos_status = "unavailable"
+
+        if self.epistemicos is not None:
+            from ..clients.epistemicos_client import EpistemicOSClientError
+            try:
+                zone_data = await self.epistemicos.get_zone(
+                    "ChronoThera-Formulation-Cluster",
+                    include_cxus=True,
+                    include_swarm_metrics=True,
+                )
+                live_cxus = zone_data.get("cxus")
+                live_swarm = zone_data.get("swarm_metrics")
+                epistemicos_status = "success"
+                logger.info("epistemicos live zone data fetched successfully")
+            except EpistemicOSClientError as exc:
+                logger.warning(
+                    "epistemicos unavailable; using synthetic trace. Reason: %s", exc
+                )
+                epistemicos_status = "fallback"
+
+        # Build CXU list: prefer live data, fall back to synthetic
+        if live_cxus:
+            cxus = live_cxus
+        else:
+            cxus = [
                 {
                     "id": cxu_id,
                     "name": name,
@@ -339,14 +462,21 @@ class ChronoTheraService:
                     "uncertainty": uncertainty,
                 }
                 for cxu_id, name in CXU_DEFINITIONS
-            ],
-            "swarm": {
-                "id": "CHRONOTHERA_FORMULATION_SWARM",
-                "mode": request.strategy_mode,
-                "participants": [name for _, name in CXU_DEFINITIONS],
-                "consensus_score": overall,
-                "consensus_rationale": "Consensus summarizes formulation, delivery, PK/PD planning, manufacturability, patient-centricity, and regulatory bridge CXUs.",
-            },
+            ]
+
+        swarm = live_swarm or {
+            "id": "CHRONOTHERA_FORMULATION_SWARM",
+            "mode": request.strategy_mode,
+            "participants": [name for _, name in CXU_DEFINITIONS],
+            "consensus_score": overall,
+            "consensus_rationale": "Consensus summarizes formulation, delivery, PK/PD planning, manufacturability, patient-centricity, and regulatory bridge CXUs.",
+        }
+
+        trace = {
+            "zone_cluster": ZONE_CLUSTER,
+            "zones": ZONES,
+            "cxus": cxus,
+            "swarm": swarm,
             "provenance": {
                 "input_hash": input_hash,
                 "output_hash": _hash(output_payload),
@@ -354,8 +484,10 @@ class ChronoTheraService:
                 "timestamp": datetime.fromtimestamp(1704067200 + int(input_hash[:8], 16), tz=timezone.utc).isoformat(),
                 "assumptions": assumptions,
                 "uncertainty_reasons": uncertainty,
+                "epistemicos_status": epistemicos_status,
             },
         }
+        return trace, epistemicos_status
 
     def _cxu_question(self, cxu_id: str) -> str:
         return {
@@ -369,23 +501,94 @@ class ChronoTheraService:
         }[cxu_id]
 
     def _build_guardian_review(self, request: ChronoTheraSimulationRequest, scorecard: Dict[str, ScoreExplanation], overall: int) -> GuardianReviewState:
+        from .guardian_trigger_config import get_trigger_reasons
+
         asset = self._asset(request.asset_id)
-        reasons: List[str] = []
-        if overall < 65:
-            reasons.append("Overall ChronoThera score below threshold")
-        if request.release_duration_weeks > 12:
-            reasons.append("Long release duration")
+        category = asset.category if asset else "Category B"
+        is_rapid = bool(asset and "Rapid Response" in asset.category)
+
+        # IV route is always a trigger regardless of category
+        extra_reasons: List[str] = []
         if request.route_of_administration == "IV":
-            reasons.append("IV route of administration")
-        if asset and "Rapid Response" in asset.category:
-            reasons.append("Rapid Response Program")
-        if scorecard["regulatory_fit"].score < 60:
-            reasons.append("Regulatory fit below threshold")
-        if scorecard["stability"].score < 60:
-            reasons.append("Stability risk requires review")
-        if scorecard["manufacturability"].score < 60:
-            reasons.append("Manufacturability requires review")
-        return GuardianReviewState(required=bool(reasons), status="pending" if reasons else "not-required", reasons=reasons)
+            extra_reasons.append("IV route of administration")
+
+        risk_reasons = get_trigger_reasons(
+            category=category,
+            overall_score=overall,
+            release_duration_weeks=request.release_duration_weeks,
+            scorecard=scorecard,
+            is_rapid_response=is_rapid,
+        )
+        reasons = risk_reasons + [r for r in extra_reasons if r not in risk_reasons]
+
+        # Determine risk tier label
+        if is_rapid:
+            risk_tier = "rapid_response"
+        elif "Category A" in category:
+            risk_tier = "category_a"
+        elif "Category C" in category:
+            risk_tier = "category_c"
+        else:
+            risk_tier = "category_b"
+
+        return GuardianReviewState(
+            required=bool(reasons),
+            status="pending" if reasons else "not-required",
+            reasons=reasons,
+            risk_tier=risk_tier,
+        )
+
+    def _compute_calibrated_score(
+        self,
+        request: ChronoTheraSimulationRequest,
+        nominal_overall: int,
+    ) -> Tuple[int, ConfidenceInterval]:
+        """Compute overall calibrated score and confidence interval."""
+        formulation = FormulationOutcome(
+            id="transient-overall",
+            formulation_objective=request.formulation_objective,
+            route=request.route_of_administration,
+            release_duration_weeks=request.release_duration_weeks,
+            apis=[api.name for api in request.apis],
+            excipients=[exc.name for exc in request.excipients],
+            predicted_score=float(nominal_overall),
+            actual_outcome="success",
+        )
+        try:
+            lower, mean, upper = self.calibrator.predict_confidence_interval(
+                formulation, float(nominal_overall)
+            )
+        except Exception:  # noqa: BLE001
+            lower = max(0.0, float(nominal_overall) - 10.0)
+            mean = float(nominal_overall)
+            upper = min(100.0, float(nominal_overall) + 10.0)
+
+        ci = ConfidenceInterval(lower=lower, mean=mean, upper=upper)
+        return _clamp(mean), ci
+
+    async def _post_to_epistemicos(
+        self, result: "ChronoTheraSimulationResult"
+    ) -> None:
+        """Fire-and-forget: post simulation outcome to EpistemicOS feedback loop."""
+        if self.epistemicos is None:
+            return
+        from ..clients.epistemicos_client import EpistemicOSClientError
+        try:
+            scorecard_summary = {
+                k: v.score for k, v in result.scorecard.items()
+            }
+            await self.epistemicos.post_formulation_result(
+                zone_id="ChronoThera-Formulation-Cluster",
+                simulation_id=result.id,
+                asset_id=result.asset_id,
+                overall_score=result.overall_chronothera_score,
+                epistemicos_status=result.epistemicos_query_status,
+                scorecard_summary=scorecard_summary,
+            )
+        except EpistemicOSClientError as exc:
+            logger.warning("epistemicos feedback post failed (non-blocking): %s", exc)
+        except Exception as exc:  # noqa: BLE001
+            logger.error("Unexpected error posting to epistemicos: %s", exc)
 
     def _asset(self, asset_id: Optional[str]) -> Optional[AssetPreset]:
         return next((asset for asset in ASSET_PRESETS if asset.id == asset_id), None)
