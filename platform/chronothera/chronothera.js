@@ -25,6 +25,26 @@ function selectedValues(name) {
   return [...document.querySelectorAll(`input[name="${name}"]:checked`)].map((input) => input.value);
 }
 
+const API_DOSE_UNITS = [
+  { value: 'mcg', label: 'micrograms (mcg)' },
+  { value: 'mg', label: 'milligrams (mg)' },
+  { value: 'g', label: 'grams (g)' },
+  { value: 'U', label: 'Units (UI / U)' },
+];
+
+function doseUnitOptions(selectedUnit = 'mg') {
+  return API_DOSE_UNITS.map((unit) => option(unit.value, unit.label))
+    .join('')
+    .replace(`value="${selectedUnit}"`, `value="${selectedUnit}" selected`);
+}
+
+function doseToMg(amount, unit) {
+  const numericAmount = Number(amount);
+  if (unit === 'mcg') return numericAmount / 1000;
+  if (unit === 'g') return numericAmount * 1000;
+  return numericAmount;
+}
+
 function fillForm() {
   $('assetId').innerHTML = option('', 'Custom research-use simulation')
     + catalog.assetPresets.map((asset) => option(asset.id, `${asset.label} · ${asset.category}`)).join('');
@@ -42,7 +62,16 @@ function renderDynamicInputs() {
   const apis = selectedValues('apis').slice(0, 5);
   $('apiDoses').innerHTML = apis.map((name) => {
     const defaultDose = catalog.apis.find((apiItem) => apiItem.name === name)?.defaultDoseMg || 1;
-    return `<label>${name} mg<input type="number" min="0" step="0.1" data-api="${name}" value="${defaultDose}"/></label>`;
+    return `
+      <div class="dose-row">
+        <label>${name} dose
+          <input type="number" min="0" step="any" data-api="${name}" value="${defaultDose}"/>
+        </label>
+        <label>Unit
+          <select data-api-unit="${name}">${doseUnitOptions('mg')}</select>
+        </label>
+      </div>
+    `;
   }).join('');
 
   const excipients = selectedValues('excipients');
@@ -64,10 +93,16 @@ function applyPreset() {
 }
 
 function collectInput() {
-  const apis = [...document.querySelectorAll('[data-api]')].map((input) => ({
-    name: input.dataset.api,
-    doseMg: Number(input.value),
-  }));
+  const apis = [...document.querySelectorAll('[data-api]')].map((input) => {
+    const unit = document.querySelector(`[data-api-unit="${input.dataset.api}"]`)?.value || 'mg';
+    const amount = Number(input.value);
+    return {
+      name: input.dataset.api,
+      doseAmount: amount,
+      doseUnit: unit,
+      doseMg: doseToMg(amount, unit),
+    };
+  });
   const excipients = [...document.querySelectorAll('[data-excipient]')].map((input) => ({
     name: input.dataset.excipient,
     percentage: Number(input.value),
