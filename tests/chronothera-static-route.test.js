@@ -12,6 +12,10 @@ test('internal ChronoThera route has static cockpit shell and noindex metadata',
   assert.match(html, /id="scorecard"/);
   assert.match(html, /id="guardianStatus"/);
   assert.match(html, /platform\/chronothera\/chronothera\.js/);
+  const script = fs.readFileSync(path.join(__dirname, '..', 'platform', 'chronothera', 'chronothera.js'), 'utf8');
+  assert.match(script, /Quantitative excipient dosing/);
+  assert.match(script, /data-excipient-amount/);
+  assert.match(script, /data-excipient-unit/);
 });
 
 test('server serves directory index files before public homepage fallback', () => {

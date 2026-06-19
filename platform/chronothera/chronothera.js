@@ -86,7 +86,9 @@ function renderDynamicInputs() {
   }).join('');
 
   const excipients = selectedValues('excipients');
-  $('excipientPercentages').innerHTML = excipients.map((name) => {
+  $('excipientPercentages').innerHTML = excipients.length ? `
+    <div class="dynamic-inputs-heading">Quantitative excipient dosing (percentage + amount)</div>
+    ${excipients.map((name) => {
     const defaultPercentage = catalog.excipients.find((excipient) => excipient.name === name)?.defaultPercentage || 5;
     return `
       <div class="dose-row">
@@ -101,7 +103,8 @@ function renderDynamicInputs() {
         </label>
       </div>
     `;
-  }).join('');
+  }).join('')}
+  ` : '';
 }
 
 function applyPreset() {
