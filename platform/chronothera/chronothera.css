@@ -109,9 +109,18 @@ legend {
 
 .dynamic-inputs {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
   gap: 0.5rem;
   margin-top: 0.8rem;
+}
+
+.dose-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(7.5rem, 0.45fr);
+  gap: 0.5rem;
+}
+
+.dose-row label {
+  margin-bottom: 0.35rem;
 }
 
 .two-col {

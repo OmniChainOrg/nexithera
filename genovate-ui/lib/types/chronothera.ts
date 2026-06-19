@@ -1,7 +1,8 @@
 export interface ChronoTheraAssetPreset { id:string; label:string; category:string; modality:string; default_apis:string[]; suggested_routes:string[]; formulation_objectives:string[]; chronothera_focus:string[]; dossier_anchor?:string }
 export interface ChronoTheraExcipientStrategy { name:string; default_percentage:number; class:string; function:string }
 export interface ChronoTheraCatalog { assets: ChronoTheraAssetPreset[]; excipient_strategies: ChronoTheraExcipientStrategy[]; formulation_objectives: string[]; routes: string[]; regulatory_bodies: string[] }
-export interface ChronoTheraApiComponent { name:string; dose_mg:number; modality?:string }
+export type ChronoTheraDoseUnit = 'mcg' | 'mg' | 'g' | 'U'
+export interface ChronoTheraApiComponent { name:string; dose_mg:number; dose_amount?:number; dose_unit?:ChronoTheraDoseUnit; modality?:string }
 export interface ChronoTheraExcipientComponent { name:string; percentage:number; function?:string }
 export interface ChronoTheraSimulationPayload { asset_id?:string; program_id?:string; formulation_objective:string; apis: ChronoTheraApiComponent[]; excipients: ChronoTheraExcipientComponent[]; release_duration_weeks:number; route_of_administration:string; regulatory_body:string; strategy_mode:'cooperative'|'competitive'; optimize_excipient_percentages:boolean; pkpd_objective:{ target_exposure:string; dosing_interval_days:number; peak_to_trough_priority:number; adherence_priority:number } }
 export interface ScoreExplanation { score:number; rationale:string; assumptions:string[]; uncertainty:string[]; recommendation:string; next_best_step:string }
