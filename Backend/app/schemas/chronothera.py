@@ -20,6 +20,7 @@ FormulationObjective = Literal[
 RouteOfAdministration = Literal["oral", "SC", "IM", "IV", "local", "ocular"]
 RegulatoryBody = Literal["FDA", "EMA", "PMDA", "TGA", "Health Canada"]
 StrategyMode = Literal["cooperative", "competitive"]
+ExcipientDoseUnit = Literal["mg", "g"]
 GuardianDecision = Literal["approved", "needs-revision", "rejected"]
 
 
@@ -32,6 +33,9 @@ class APIComponent(BaseModel):
 class ExcipientComponent(BaseModel):
     name: str
     percentage: float = Field(ge=0, le=100)
+    amount_mg: float = Field(default=1, gt=0)
+    amount: Optional[float] = Field(default=None, gt=0)
+    unit: ExcipientDoseUnit = "mg"
     function: Optional[str] = None
 
 

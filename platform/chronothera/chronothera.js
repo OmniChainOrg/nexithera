@@ -45,6 +45,17 @@ function doseToMg(amount, unit) {
   return numericAmount;
 }
 
+function excipientUnitOptions(selectedUnit = 'mg') {
+  return ['mg', 'g'].map((unit) => option(unit, unit === 'mg' ? 'milligrams (mg)' : 'grams (g)'))
+    .join('')
+    .replace(`value="${selectedUnit}"`, `value="${selectedUnit}" selected`);
+}
+
+function excipientAmountToMg(amount, unit) {
+  const numericAmount = Number(amount);
+  return unit === 'g' ? numericAmount * 1000 : numericAmount;
+}
+
 function fillForm() {
   $('assetId').innerHTML = option('', 'Custom research-use simulation')
     + catalog.assetPresets.map((asset) => option(asset.id, `${asset.label} · ${asset.category}`)).join('');
@@ -75,10 +86,25 @@ function renderDynamicInputs() {
   }).join('');
 
   const excipients = selectedValues('excipients');
-  $('excipientPercentages').innerHTML = excipients.map((name) => {
+  $('excipientPercentages').innerHTML = excipients.length ? `
+    <div class="dynamic-inputs-heading">Quantitative excipient dosing (percentage + amount)</div>
+    ${excipients.map((name) => {
     const defaultPercentage = catalog.excipients.find((excipient) => excipient.name === name)?.defaultPercentage || 5;
-    return `<label>${name} %<input type="number" min="0" max="100" step="0.1" data-excipient="${name}" value="${defaultPercentage}"/></label>`;
-  }).join('');
+    return `
+      <div class="dose-row">
+        <label>${name} %
+          <input type="number" min="0" max="100" step="0.1" data-excipient="${name}" value="${defaultPercentage}"/>
+        </label>
+        <label>${name} amount
+          <input type="number" min="0" step="any" data-excipient-amount="${name}" value="${Math.max(1, defaultPercentage)}"/>
+        </label>
+        <label>Unit
+          <select data-excipient-unit="${name}">${excipientUnitOptions('mg')}</select>
+        </label>
+      </div>
+    `;
+  }).join('')}
+  ` : '';
 }
 
 function applyPreset() {
@@ -103,10 +129,18 @@ function collectInput() {
       doseMg: doseToMg(amount, unit),
     };
   });
-  const excipients = [...document.querySelectorAll('[data-excipient]')].map((input) => ({
-    name: input.dataset.excipient,
-    percentage: Number(input.value),
-  }));
+  const excipients = [...document.querySelectorAll('[data-excipient]')].map((input) => {
+    const amountInput = document.querySelector(`[data-excipient-amount="${input.dataset.excipient}"]`);
+    const unit = document.querySelector(`[data-excipient-unit="${input.dataset.excipient}"]`)?.value || 'mg';
+    const amount = Number(amountInput?.value || 1);
+    return {
+      name: input.dataset.excipient,
+      percentage: Number(input.value),
+      amount,
+      unit,
+      amountMg: excipientAmountToMg(amount, unit),
+    };
+  });
 
   return {
     assetId: $('assetId').value,
