@@ -6,3 +6,12 @@ services:
     buildCommand: npm install --omit=dev
     startCommand: node server.js
     autoDeploy: true
+
+  - type: web
+    name: genovate-ui
+    runtime: node
+    plan: free
+    rootDir: genovate-ui
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    autoDeploy: true
