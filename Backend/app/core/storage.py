@@ -24,8 +24,11 @@ class StorageService:
         # Create bucket if it doesn't exist
         try:
             self.client.head_bucket(Bucket=self.bucket)
-        except:
-            self.client.create_bucket(Bucket=self.bucket)
+        except Exception:
+            try:
+                self.client.create_bucket(Bucket=self.bucket)
+            except Exception as e:
+                print(f"⚠️  Storage bucket init failed (non-fatal): {e}")
     
     async def upload_file(self, bucket: str, key: str, content: bytes, content_type: str) -> str:
         """Upload file to bucket and return S3 URI."""
