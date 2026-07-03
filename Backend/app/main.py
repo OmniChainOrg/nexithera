@@ -25,8 +25,11 @@ async def lifespan(app: FastAPI):
     """Startup and shutdown events."""
     # Startup
     await db.init()
-    await storage.init()
-    print("✅ Database and storage initialized")
+    try:
+        await storage.init()
+        print("✅ Database and storage initialized")
+    except Exception as e:
+        print(f"⚠️  Storage unavailable, continuing without it: {e}")
     yield
     # Shutdown
     await db.close()
