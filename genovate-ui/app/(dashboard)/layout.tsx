@@ -1,6 +1,6 @@
 import { Sidebar } from '@/components/layout/sidebar';
 import { Header } from '@/components/layout/header';
-import { ErrorBoundary } from '@/components/common/error-boundary';
+import { ErrorBoundaryWithReset } from '@/components/common/error-boundary';
 import { NotificationToaster } from '@/components/common/notification-toast';
 import { ProgramEventsListener } from '@/components/common/program-events-listener';
 
@@ -11,7 +11,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <div className="flex min-w-0 flex-1 flex-col">
         <Header />
         <main className="flex-1 p-4 md:p-6">
-          <ErrorBoundary>{children}</ErrorBoundary>
+          <ErrorBoundaryWithReset>{children}</ErrorBoundaryWithReset>
         </main>
       </div>
       <ProgramEventsListener />

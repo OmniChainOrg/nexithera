@@ -37,6 +37,7 @@ export const candidateStatusOrder: CandidateStatus[] = [
   'guardian_review',
   'promoted',
   'killed',
+  'parked',
 ];
 
 export function entityColor(entityType: EntityType): string {
