@@ -7,9 +7,31 @@ export interface ListSimulationRunsParams {
   limit?: number;
 }
 
+export interface CreateZoneInput {
+  program_id: string;
+  zone_type: string;
+  config?: Record<string, unknown>;
+  name?: string;
+}
+
 export interface CreateCXUInput {
-  name: string;
   zone_id: string;
+  cxu_type: string;
+  configuration?: Record<string, unknown>;
+  program_id: string;
+}
+
+export interface CreateSwarmInput {
+  swarm_config: Record<string, unknown>;
+  program_id: string;
+  objective: string;
+}
+
+export interface RunCrossZoneInput {
+  source_zone_id: string;
+  target_zone_id: string;
+  coupling_map: Record<string, string>;
+  inputs: Record<string, unknown>;
   program_id: string;
 }
 
@@ -25,7 +47,13 @@ export const simulationsApi = {
     ),
   listCXUs: (programId: string, signal?: AbortSignal) =>
     api.get<CXU[]>(`/simulations/program/${encodeURIComponent(programId)}/cxus`, { signal }),
+  createZone: (input: CreateZoneInput) =>
+    api.post<{ id: string; name: string; status: string }>('/simulations/zones', input),
   createCXU: (input: CreateCXUInput) => api.post<CXU>('/simulations/cxus', input),
+  createSwarm: (input: CreateSwarmInput) =>
+    api.post<Record<string, unknown>>('/simulations/swarms', input),
+  runCrossZone: (input: RunCrossZoneInput) =>
+    api.post<SimulationRun>('/simulations/cross-zone', input),
   startCXU: (id: string) => api.post<CXU>(`/simulations/cxus/${encodeURIComponent(id)}/start`),
   pauseCXU: (id: string) => api.post<CXU>(`/simulations/cxus/${encodeURIComponent(id)}/pause`),
   terminateCXU: (id: string) =>

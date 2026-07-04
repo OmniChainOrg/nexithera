@@ -141,7 +141,7 @@ async def list_reviews(
         limit=limit,
         offset=offset,
     )
-    return {"reviews": rows, "count": len(rows)}
+    return rows
 
 
 # ---------------------------------------------------------------------------
