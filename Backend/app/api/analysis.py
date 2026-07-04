@@ -54,14 +54,15 @@ async def run_gap_analysis(request: GapAnalysisRequest) -> Dict[str, Any]:
 @router.post("/next-experiments")
 async def next_experiments(
     request: NextExperimentsRequest,
-) -> Dict[str, Any]:
+) -> List[Dict[str, Any]]:
     """Generate the top-N proposed experiments for a program."""
     try:
-        return await active_learning_service.propose_next_experiments(
+        result = await active_learning_service.propose_next_experiments(
             program_id=request.program_id,
             max_experiments=request.max_experiments,
             include_cost=request.include_cost,
         )
+        return result if isinstance(result, list) else result.get('experiments', [])
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
@@ -110,16 +111,11 @@ async def list_proposed_experiments(
     program_id: str,
     status: Optional[str] = None,
     limit: int = 50,
-) -> Dict[str, Any]:
+) -> List[Dict[str, Any]]:
     """List proposed experiments for the experiment-queue dashboard card."""
-    experiments = await active_learning_service.list_experiments(
+    return await active_learning_service.list_experiments(
         program_id=program_id, status=status, limit=limit
     )
-    return {
-        "program_id": program_id,
-        "experiments": experiments,
-        "count": len(experiments),
-    }
 
 
 @router.get("/hypotheses/{hypothesis_id}/belief-timeline")

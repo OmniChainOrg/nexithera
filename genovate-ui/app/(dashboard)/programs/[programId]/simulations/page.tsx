@@ -5,6 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CXUStatusCard } from '@/components/simulations/cxu-status-card';
 import { SwarmVisualization } from '@/components/simulations/swarm-visualization';
 import { CrossZoneViewer } from '@/components/simulations/cross-zone-viewer';
+import { CreateZoneDialog } from '@/components/simulations/create-zone-dialog';
+import { CreateCXUDialog } from '@/components/simulations/create-cxu-dialog';
+import { CreateSwarmDialog } from '@/components/simulations/create-swarm-dialog';
+import { RunCrossZoneDialog } from '@/components/simulations/run-cross-zone-dialog';
 import { LoadingSpinner } from '@/components/common/loading-spinner';
 import { EmptyState } from '@/components/common/empty-state';
 import {
@@ -37,8 +41,9 @@ export default function SimulationDashboardPage({
     <div className="space-y-6">
       <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0">
             <CardTitle className="text-base">CXUs</CardTitle>
+            <CreateCXUDialog programId={programId} />
           </CardHeader>
           <CardContent>
             {cxus.isLoading ? (
@@ -56,8 +61,9 @@ export default function SimulationDashboardPage({
         </Card>
 
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0">
             <CardTitle className="text-base">Swarm consensus</CardTitle>
+            <CreateSwarmDialog programId={programId} />
           </CardHeader>
           <CardContent>
             <SwarmVisualization members={swarmMembers} consensus={consensus} />
@@ -66,8 +72,9 @@ export default function SimulationDashboardPage({
       </div>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0">
           <CardTitle className="text-base">Zones</CardTitle>
+          <CreateZoneDialog programId={programId} />
         </CardHeader>
         <CardContent>
           {zones.isLoading ? (
@@ -88,8 +95,9 @@ export default function SimulationDashboardPage({
       </Card>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0">
           <CardTitle className="text-base">Cross-zone runs</CardTitle>
+          <RunCrossZoneDialog programId={programId} />
         </CardHeader>
         <CardContent>
           {runs.isLoading ? <LoadingSpinner /> : <CrossZoneViewer runs={runs.data ?? []} />}
