@@ -28,6 +28,23 @@ async def create_program(program: ProgramCreate):
     
     return dict(row)
 
+@router.get("", response_model=list[ProgramResponse])
+async def list_programs():
+    """List all programs for the default organization."""
+    pool = await db.get_pool()
+
+    async with pool.acquire() as conn:
+        # Default organization for MVP
+        org_id = "11111111-1111-1111-1111-111111111111"
+        rows = await conn.fetch("""
+            SELECT id, name, therapeutic_area, description, status, created_at
+            FROM programs
+            WHERE organization_id = $1
+            ORDER BY created_at DESC
+        """, org_id)
+
+    return [dict(row) for row in rows]
+
 @router.get("/{program_id}", response_model=ProgramResponse)
 async def get_program(program_id: str):
     """Get program details."""
@@ -43,6 +60,35 @@ async def get_program(program_id: str):
     if not row:
         raise HTTPException(status_code=404, detail="Program not found")
     
+    return dict(row)
+
+
+class ProgramStatusUpdate(BaseModel):
+    status: str
+
+
+@router.patch("/{program_id}", response_model=ProgramResponse)
+async def update_program(program_id: str, payload: ProgramStatusUpdate):
+    """Update program status (e.g. archive)."""
+    allowed = ("active", "archived")
+    if payload.status not in allowed:
+        raise HTTPException(
+            status_code=400,
+            detail=f"status must be one of {allowed}",
+        )
+
+    pool = await db.get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow("""
+            UPDATE programs
+               SET status = $2, updated_at = NOW()
+             WHERE id = $1
+            RETURNING id, name, therapeutic_area, description, status, created_at
+        """, program_id, payload.status)
+
+    if not row:
+        raise HTTPException(status_code=404, detail="Program not found")
+
     return dict(row)
 
 

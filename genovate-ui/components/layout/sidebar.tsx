@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import {
   Activity,
   Beaker,
+  FolderOpen,
   GitBranch,
   Home,
   LayoutDashboard,
@@ -29,6 +30,7 @@ interface NavItem {
 
 const PRIMARY_NAV: NavItem[] = [
   { href: '/', label: 'Overview', icon: Home },
+  { href: '/programs', label: 'Programs', icon: FolderOpen },
   { href: '/evidence-graph', label: 'Evidence Graph', icon: Network },
   { href: '/agent-runs', label: 'Agent Runs', icon: Activity },
   { href: '/target-discovery', label: 'Targets', icon: Sparkles },
