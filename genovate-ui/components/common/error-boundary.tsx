@@ -1,10 +1,12 @@
 'use client';
 
 import * as React from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface ErrorBoundaryProps {
   children: React.ReactNode;
   fallback?: React.ReactNode;
+  onReset?: () => void;
 }
 
 interface ErrorBoundaryState {
@@ -27,7 +29,10 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
     console.error('Genovate UI error boundary:', error, info);
   }
 
-  reset = () => this.setState({ error: null });
+  reset = () => {
+    this.props.onReset?.();
+    this.setState({ error: null });
+  };
 
   render() {
     if (this.state.error) {
@@ -49,4 +54,17 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
     }
     return this.props.children;
   }
+}
+
+/**
+ * Thin client wrapper around ErrorBoundary that wires queryClient.clear() to
+ * the onReset callback, so "Try again" always fetches fresh data.
+ */
+export function ErrorBoundaryWithReset({ children }: { children: React.ReactNode }) {
+  const queryClient = useQueryClient();
+  return (
+    <ErrorBoundary onReset={() => queryClient.clear()}>
+      {children}
+    </ErrorBoundary>
+  );
 }

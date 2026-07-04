@@ -107,7 +107,7 @@ async def list_candidates_by_program(
 ):
     """List all candidates in a program."""
     results = await candidate_service.list_candidates_by_program(program_id, status)
-    return {"candidates": results, "count": len(results)}
+    return results
 
 
 # ---------------------------------------------------------------------------
