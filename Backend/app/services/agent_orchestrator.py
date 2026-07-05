@@ -9,6 +9,13 @@ from ..agents.simulation_critic_agent import SimulationCriticAgent
 from ..agents.target_discovery_agent import TargetDiscoveryAgent
 from ..agents.gap_analysis_agent import GapAnalysisAgent
 from ..agents.active_learning_agent import ActiveLearningAgent
+from ..agents.safety_toxicity_agent import SafetyToxicityAgent
+from ..agents.competitive_landscape_agent import CompetitiveLandscapeAgent
+from ..agents.forecast_synthesizer_agent import ForecastSynthesizerAgent
+from ..agents.trial_design_agent import TrialDesignAgent
+from ..agents.ip_position_agent import IPPositionAgent
+from ..agents.historical_precedent_agent import HistoricalPrecedentAgent
+from ..agents.ind_readiness_agent import INDReadinessAgent
 
 # Agent instances (in production, these would be loaded from DB with prompts)
 AGENTS = {}
@@ -50,6 +57,20 @@ async def get_or_create_agent(agent_name: str):
         agent = GapAnalysisAgent(agent_id)
     elif agent_name == "Active Learning Agent":
         agent = ActiveLearningAgent(agent_id)
+    elif agent_name in ("Safety & Toxicity Agent", "Safety Toxicity Agent"):
+        agent = SafetyToxicityAgent(agent_id)
+    elif agent_name == "Competitive Landscape Agent":
+        agent = CompetitiveLandscapeAgent(agent_id)
+    elif agent_name in ("Clinical Forecaster Agent", "Forecast Synthesizer"):
+        agent = ForecastSynthesizerAgent(agent_id)
+    elif agent_name == "Trial Design Agent":
+        agent = TrialDesignAgent(agent_id)
+    elif agent_name == "IP Position Agent":
+        agent = IPPositionAgent(agent_id)
+    elif agent_name == "Historical Precedent Agent":
+        agent = HistoricalPrecedentAgent(agent_id)
+    elif agent_name == "IND Readiness Agent":
+        agent = INDReadinessAgent(agent_id)
     else:
         raise ValueError(f"Unknown agent: {agent_name}")
     

@@ -123,6 +123,49 @@ class BaseAgent(ABC):
                 suggests_improvement, severity
             )
 
+    async def _call_llm(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        temperature: float = 0.2,
+        response_format: str = "json",
+    ) -> "dict | str":
+        """Call OpenAI with the given prompts. Returns parsed JSON dict or string."""
+        from openai import AsyncOpenAI
+        from ..core.config import settings
+
+        if not settings.OPENAI_API_KEY:
+            return {
+                "summary": "OpenAI API key not configured. Set OPENAI_API_KEY in environment.",
+                "confidence": 0.0,
+                "recommended_next_step": "Configure OPENAI_API_KEY",
+                "structure": {},
+                "trace_summary": "No LLM call made — key missing.",
+                "uncertainty_reason": "OPENAI_API_KEY not set",
+            }
+
+        client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ]
+        kwargs: dict = {
+            "model": settings.OPENAI_MODEL,
+            "messages": messages,
+            "temperature": temperature,
+            "max_tokens": settings.OPENAI_MAX_TOKENS,
+        }
+        if response_format == "json":
+            kwargs["response_format"] = {"type": "json_object"}
+
+        response = await client.chat.completions.create(**kwargs)
+        content = response.choices[0].message.content
+
+        if response_format == "json":
+            import json as _json
+            return _json.loads(content)
+        return content
+
     async def _semantic_search(
         self,
         query: str,

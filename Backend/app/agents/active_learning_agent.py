@@ -348,7 +348,14 @@ class ActiveLearningAgent(BaseAgent):
             )
             confidence = 0.3
 
-        return {
+        trace_summary = (
+            f"Evaluated {len(templates)} templates × "
+            f"{len(targets)} targets = "
+            f"{len(templates) * len(targets)} candidate experiments; "
+            f"returned top {len(proposed)}."
+        )
+
+        heuristic_result = {
             "summary": summary,
             "structure": {
                 "program_id": program_id,
@@ -367,13 +374,54 @@ class ActiveLearningAgent(BaseAgent):
                 else "Low information gain across template library"
             ),
             "recommended_next_step": recommended,
-            "trace_summary": (
-                f"Evaluated {len(templates)} templates × "
-                f"{len(targets)} targets = "
-                f"{len(templates) * len(targets)} candidate experiments; "
-                f"returned top {len(proposed)}."
-            ),
+            "trace_summary": trace_summary,
         }
+
+        # Enhance with LLM if available
+        from ..core.config import settings
+        if not settings.OPENAI_API_KEY or not proposed:
+            return heuristic_result
+
+        top_experiments = [
+            {
+                "type": e["experiment_type"],
+                "description": e["description"],
+                "info_gain": e["information_gain"],
+                "cost": e["cost_estimate"],
+                "priority": e["priority"],
+            }
+            for e in proposed[:5]
+        ]
+        system_prompt = (
+            "You are the Active Learning Agent for a drug discovery platform. "
+            "Review information-gain-ranked experiments and provide expert prioritization guidance. "
+            "Return a JSON object with exactly these keys: "
+            "summary (string — expert 2-sentence narrative), confidence (float 0-1), "
+            "uncertainty_reason (null or string), recommended_next_step (string), "
+            "trace_summary (string), structure (object — pass through unchanged)."
+        )
+        user_prompt = (
+            f"Disease: {disease_name}\n"
+            f"Proposed experiments (ranked by information gain / cost):\n{top_experiments}\n"
+            f"Ranking mode: {'value_per_unit_cost' if include_cost else 'information_gain'}\n"
+            f"Total experiments ranked: {len(proposed)}\n\n"
+            "Provide an expert narrative on experiment prioritization and rationale. "
+            f"Return the structure field as: {heuristic_result['structure']!r}"
+        )
+
+        llm_result = await self._call_llm(system_prompt, user_prompt)
+        if isinstance(llm_result, dict) and "summary" in llm_result:
+            heuristic_result["summary"] = llm_result.get("summary", summary)
+            heuristic_result["recommended_next_step"] = llm_result.get(
+                "recommended_next_step", recommended
+            )
+            heuristic_result["trace_summary"] = llm_result.get("trace_summary", trace_summary)
+            if llm_result.get("confidence") is not None:
+                heuristic_result["confidence"] = llm_result["confidence"]
+            heuristic_result["uncertainty_reason"] = llm_result.get(
+                "uncertainty_reason", heuristic_result["uncertainty_reason"]
+            )
+        return heuristic_result
 
 
 def _gap_prior_confidence(gap: Dict[str, Any]) -> float:

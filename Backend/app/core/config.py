@@ -30,6 +30,11 @@ class Settings:
     EPISTEMICOS_ENABLE_SIMULATION: bool = os.getenv("EPISTEMICOS_ENABLE_SIMULATION", "true").lower() == "true"
     EPISTEMICOS_ENABLE_CXU: bool = os.getenv("EPISTEMICOS_ENABLE_CXU", "true").lower() == "true"
     
+    # OpenAI
+    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
+    OPENAI_MODEL: str = os.getenv("OPENAI_MODEL", "gpt-4o")
+    OPENAI_MAX_TOKENS: int = int(os.getenv("OPENAI_MAX_TOKENS", "4096"))
+
     # Redis
     REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
     

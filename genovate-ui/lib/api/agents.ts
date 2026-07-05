@@ -21,6 +21,6 @@ export const agentsApi = {
     api.get<AgentRun[]>('/agents/runs', { query: params as Record<string, unknown>, signal }),
   getRun: (id: string, signal?: AbortSignal) =>
     api.get<AgentRun>(`/agents/runs/${encodeURIComponent(id)}`, { signal }),
-  run: (input: RunAgentInput) => api.post<AgentRun>('/agents/runs', input),
+  run: (input: RunAgentInput) => api.post<AgentRun>('/agents/run', input),
   rerun: (id: string) => api.post<AgentRun>(`/agents/runs/${encodeURIComponent(id)}/rerun`),
 };

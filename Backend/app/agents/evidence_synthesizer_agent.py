@@ -17,50 +17,47 @@ class EvidenceSynthesizerAgent(BaseAgent):
         """
         agent_outputs = inputs.get("agent_outputs", [])
         candidate_name = inputs.get("candidate_name")
-        
-        if not agent_outputs:
+        synthesis_focus = inputs.get("synthesis_focus", "")
+
+        if not agent_outputs and not candidate_name:
             return {
-                "summary": "No agent outputs to synthesize.",
+                "summary": "No agent outputs or candidate name provided to synthesize.",
                 "structure": {"recommendation": "insufficient_data", "ranked_reasons": []},
                 "confidence": 0.0,
-                "uncertainty_reason": "No agent outputs provided",
-                "recommended_next_step": "Run individual agents first",
-                "trace_summary": "Synthesis aborted: empty input"
+                "uncertainty_reason": "No inputs provided",
+                "recommended_next_step": "Run individual agents first or provide a candidate name",
+                "trace_summary": "Synthesis aborted: empty input",
             }
-        
-        # Aggregate confidence scores
-        confidences = [o.get('confidence', 0.5) for o in agent_outputs if isinstance(o, dict)]
-        avg_confidence = sum(confidences) / len(confidences) if confidences else 0.5
-        
-        # Extract key recommendations
-        recommendations = []
-        for output in agent_outputs:
-            if isinstance(output, dict) and output.get('recommended_next_step'):
-                recommendations.append(output['recommended_next_step'])
-        
-        # Synthesize final recommendation
-        if any("promote" in r.lower() for r in recommendations):
-            final_recommendation = "Promote candidate to Guardian Review"
-        elif any("gather" in r.lower() or "additional" in r.lower() for r in recommendations):
-            final_recommendation = "Gather additional evidence"
-        else:
-            final_recommendation = "Consider alternative candidates or targets"
-        
-        trace_summary = f"Synthesized {len(agent_outputs)} agent outputs. "
-        trace_summary += f"Average confidence: {avg_confidence:.2f}. "
-        trace_summary += f"Final recommendation: {final_recommendation}"
-        
-        return {
-            "summary": f"After synthesizing {len(agent_outputs)} agent evaluations, the recommendation is: {final_recommendation}. Overall confidence: {avg_confidence:.2f}.",
-            "structure": {
-                "candidate": candidate_name,
-                "overall_confidence": avg_confidence,
-                "recommendation": final_recommendation,
-                "agent_count": len(agent_outputs),
-                "ranked_reasons": recommendations[:5]  # Top 5 recommendations
-            },
-            "confidence": avg_confidence,
-            "uncertainty_reason": None if avg_confidence >= 0.6 else "Confidence across agents is low",
-            "recommended_next_step": final_recommendation,
-            "trace_summary": trace_summary
-        }
+
+        system_prompt = (
+            "You are the Evidence Synthesizer Agent for a drug discovery platform. "
+            "Synthesize multi-source evidence and agent outputs into a unified structured assessment. "
+            "Return a JSON object with exactly these keys: "
+            "summary (string), confidence (float 0-1), uncertainty_reason (null or string), "
+            "recommended_next_step (string), trace_summary (string), structure (object with: "
+            "candidate, overall_confidence, recommendation, agent_count, ranked_reasons, "
+            "key_evidence_claims, synthesis_notes)."
+        )
+
+        agent_summaries = [
+            {
+                "agent": o.get("agent_name", "unknown") if isinstance(o, dict) else "unknown",
+                "summary": o.get("summary", "") if isinstance(o, dict) else "",
+                "confidence": o.get("confidence", 0.5) if isinstance(o, dict) else 0.5,
+                "recommended_next_step": o.get("recommended_next_step", "") if isinstance(o, dict) else "",
+            }
+            for o in agent_outputs
+        ]
+
+        user_prompt = (
+            f"Candidate / target: {candidate_name or 'not specified'}\n"
+            f"Synthesis focus: {synthesis_focus or 'general'}\n"
+            f"Number of agent outputs to synthesize: {len(agent_outputs)}\n"
+            f"Agent outputs:\n{agent_summaries}\n\n"
+            "Synthesize these agent outputs into a unified recommendation. "
+            "Weigh each agent's confidence and recommendation. "
+            "Provide a clear overall recommendation (e.g., 'Promote to Guardian Review', "
+            "'Gather additional evidence', or 'Consider alternatives')."
+        )
+
+        return await self._call_llm(system_prompt, user_prompt)
