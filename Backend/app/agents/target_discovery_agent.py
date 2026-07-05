@@ -244,7 +244,7 @@ class TargetDiscoveryAgent(BaseAgent):
             f"returned top {len(ranked)} by opportunity score."
         )
 
-        return {
+        heuristic_result = {
             "summary": summary,
             "structure": {
                 "program_id": program_id,
@@ -258,3 +258,44 @@ class TargetDiscoveryAgent(BaseAgent):
             "recommended_next_step": recommended_next_step,
             "trace_summary": trace_summary,
         }
+
+        # Enhance with LLM if available
+        from ..core.config import settings
+        if not settings.OPENAI_API_KEY or not ranked:
+            return heuristic_result
+
+        top_targets = [
+            {"name": t["target_name"], "score": t["score"], "hypothesis": t["proposed_hypothesis"]}
+            for t in ranked[:5]
+        ]
+        system_prompt = (
+            "You are the Target Discovery Agent for a drug discovery platform. "
+            "Analyze a ranked list of novel drug targets and provide expert commentary. "
+            "Return a JSON object with exactly these keys: "
+            "summary (string — expert 2-sentence narrative), confidence (float 0-1), "
+            "uncertainty_reason (null or string), recommended_next_step (string), "
+            "trace_summary (string), structure (object — pass through the provided structure unchanged)."
+        )
+        user_prompt = (
+            f"Disease: {disease_name}\n"
+            f"Top discovered targets (by opportunity score):\n"
+            f"{top_targets}\n"
+            f"Total scanned: {len(candidate_rows)} entities, {len(in_pipeline_ids)} already in pipeline.\n\n"
+            "Provide an expert narrative summary and next-step recommendation for these novel targets. "
+            f"Return the structure field as: {heuristic_result['structure']!r}"
+        )
+
+        llm_result = await self._call_llm(system_prompt, user_prompt)
+        # Preserve the full ranked list from DB; only take LLM narrative fields
+        if isinstance(llm_result, dict) and "summary" in llm_result:
+            heuristic_result["summary"] = llm_result.get("summary", summary)
+            heuristic_result["recommended_next_step"] = llm_result.get(
+                "recommended_next_step", recommended_next_step
+            )
+            heuristic_result["trace_summary"] = llm_result.get("trace_summary", trace_summary)
+            if llm_result.get("confidence") is not None:
+                heuristic_result["confidence"] = llm_result["confidence"]
+            heuristic_result["uncertainty_reason"] = llm_result.get(
+                "uncertainty_reason", uncertainty_reason
+            )
+        return heuristic_result

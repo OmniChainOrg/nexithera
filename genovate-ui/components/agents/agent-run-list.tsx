@@ -15,9 +15,11 @@ interface AgentRunListProps {
   runs: AgentRun[];
   /** Optional link template, used by global pages. */
   hrefForRun?: (run: AgentRun) => string;
+  /** Optional click handler, used to open the detail panel. */
+  onRunClick?: (run: AgentRun) => void;
 }
 
-export function AgentRunList({ runs, hrefForRun }: AgentRunListProps) {
+export function AgentRunList({ runs, hrefForRun, onRunClick }: AgentRunListProps) {
   if (!runs.length) {
     return <p className="p-6 text-center text-sm text-muted-foreground">No agent runs yet.</p>;
   }
@@ -35,10 +37,14 @@ export function AgentRunList({ runs, hrefForRun }: AgentRunListProps) {
         </thead>
         <tbody className="divide-y">
           {runs.map((r) => (
-            <tr key={r.id} className="hover:bg-accent/40">
+            <tr
+              key={r.id}
+              className={`hover:bg-accent/40${onRunClick ? ' cursor-pointer' : ''}`}
+              onClick={onRunClick ? () => onRunClick(r) : undefined}
+            >
               <td className="px-3 py-2 font-medium">
                 {hrefForRun ? (
-                  <Link href={hrefForRun(r)} className="hover:underline">
+                  <Link href={hrefForRun(r)} className="hover:underline" onClick={(e) => e.stopPropagation()}>
                     {r.agent_name}
                   </Link>
                 ) : (

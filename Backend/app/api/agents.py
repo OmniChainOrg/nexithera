@@ -71,7 +71,7 @@ async def list_agent_runs(
 ):
     """List agent runs with optional program filter."""
     runs = await agent_run_service.list_runs(program_id, limit, offset)
-    return {"runs": runs, "count": len(runs)}
+    return runs
 
 @router.get("/runs/{run_id}")
 async def get_agent_run(run_id: str):
@@ -89,7 +89,7 @@ async def list_agents():
         rows = await conn.fetch(
             "SELECT id, name, role, description, is_active FROM agents ORDER BY name"
         )
-        return {"agents": [dict(r) for r in rows]}
+        return [dict(r) for r in rows]
 
 
 # ---------------------------------------------------------------------------
