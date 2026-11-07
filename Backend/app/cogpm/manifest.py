@@ -52,6 +52,8 @@ class AppManifest(BaseModel):
     publisher: str
     domain: str
     description: str = ""
+    app_image: Optional[str] = None
+    kernel_pins: Optional[Dict[str, str]] = None
     kernels: Dict[str, KernelRequirement]
     requires_any_of: List[str] = Field(default_factory=list)
     hosting_dependencies: List[str] = Field(default_factory=list)
