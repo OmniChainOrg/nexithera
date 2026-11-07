@@ -1,0 +1,17 @@
+name: forge
+version: 1.0.0
+display_name: Forge
+tier: standard
+publisher: nexithera
+domain: therapeutic
+description: Local drug-discovery workbench (ingestion, evidence graphs, hypotheses, single-zone CXU simulation).
+kernels:
+  epistemicos:
+    required: true
+    min_version: "0.1.0"
+    capabilities: [cxu_zone, guardian, semantic_search, single_zone_simulation]
+requires_any_of: []
+hosting_dependencies: []
+spend_policy:
+  monthly_ceiling_usd: 500
+  enforcement: hard_stop
