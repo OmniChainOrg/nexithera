@@ -5,6 +5,9 @@ tier: pro_addon
 publisher: nexithera
 domain: therapeutic
 description: Formulation delivery and manufacturing intelligence add-on for Forge or Forge Plus.
+app_image: nexithera/chronothera:1.0.0
+kernel_pins:
+  epistemicos: b438512  # https://github.com/OmniChainOrg/EpistemicOS/commit/b438512
 kernels:
   epistemicos:
     required: true

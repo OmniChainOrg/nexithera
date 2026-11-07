@@ -5,6 +5,10 @@ tier: enterprise
 publisher: nexithera
 domain: therapeutic
 description: Dual-kernel Forge (EpistemicOS governance + SynapticaOS execution) with cross-zone and swarm simulation.
+app_image: nexithera/forge-plus:1.0.0
+kernel_pins:
+  epistemicos: b438512  # https://github.com/OmniChainOrg/EpistemicOS/commit/b438512
+  synapticaos: pending  # SynapticaOS merges incoming
 kernels:
   epistemicos:
     required: true

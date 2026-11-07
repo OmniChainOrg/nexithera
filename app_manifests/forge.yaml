@@ -5,11 +5,14 @@ tier: standard
 publisher: nexithera
 domain: therapeutic
 description: Local drug-discovery workbench (ingestion, evidence graphs, hypotheses, single-zone CXU simulation).
+app_image: nexithera/forge:1.0.0
+kernel_pins:
+  epistemicos: b438512  # https://github.com/OmniChainOrg/EpistemicOS/commit/b438512
 kernels:
   epistemicos:
     required: true
     min_version: "0.1.0"
-    capabilities: [cxu_zone, guardian, semantic_search, single_zone_simulation]
+    capabilities: [cxu_zone, guardian, semantic_search, single_zone_simulation, governed_knowledge_commit]
 requires_any_of: []
 hosting_dependencies: []
 spend_policy:
