@@ -1,0 +1,21 @@
+name: forge-plus
+version: 1.0.0
+display_name: Forge Plus
+tier: enterprise
+publisher: nexithera
+domain: therapeutic
+description: Dual-kernel Forge (EpistemicOS governance + SynapticaOS execution) with cross-zone and swarm simulation.
+kernels:
+  epistemicos:
+    required: true
+    min_version: "0.1.0"
+    capabilities: [cxu_zone, guardian, semantic_search, governed_knowledge_commit]
+  synapticaos:
+    required: true
+    min_version: "0.1.0"
+    capabilities: [swarm_resource_group, ctu_binding, execution_lease, sparse_execution]
+requires_any_of: []
+hosting_dependencies: [protein_folding]
+spend_policy:
+  monthly_ceiling_usd: 20000
+  enforcement: reservation

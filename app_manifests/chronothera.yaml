@@ -1,0 +1,18 @@
+name: chronothera
+version: 1.0.0
+display_name: ChronoThera
+tier: pro_addon
+publisher: nexithera
+domain: therapeutic
+description: Formulation delivery and manufacturing intelligence add-on for Forge or Forge Plus.
+kernels:
+  epistemicos:
+    required: true
+    min_version: "0.1.0"
+    capabilities: [cxu_zone, guardian, governed_knowledge_commit]
+requires_any_of: [forge, forge-plus]
+hosting_dependencies: []
+spend_policy:
+  monthly_ceiling_usd: 2000
+  enforcement: controlled_overage
+  overage_limit_pct: 20
