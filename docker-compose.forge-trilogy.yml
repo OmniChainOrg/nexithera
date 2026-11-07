@@ -1,0 +1,110 @@
+version: '3.8'
+
+services:
+  epistemicos:
+    image: omnichaingit/epistemicos:latest
+    ports:
+      - "8001:8000"
+    environment:
+      - ZONE_GUARDIAN_TOKEN=dev-guardian-token
+    volumes:
+      - epistemicos_data:/app/data
+
+  synapticaos:
+    image: omnichaingit/synapticaos:latest
+    ports:
+      - "8002:8000"
+    depends_on:
+      - epistemicos
+
+  forge:
+    build:
+      context: .
+      dockerfile: Backend/apps/forge/Dockerfile
+    ports:
+      - "8010:8000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/forge
+      - REDIS_URL=redis://redis:6379
+      - MINIO_ENDPOINT=minio:9000
+      - EPISTEMICOS_ENDPOINT=http://epistemicos:8000
+      - ZONE_GUARDIAN_TOKEN=dev-guardian-token
+    depends_on:
+      - postgres
+      - redis
+      - minio
+      - epistemicos
+
+  forge_plus:
+    build:
+      context: .
+      dockerfile: Backend/apps/forge_plus/Dockerfile
+    ports:
+      - "8020:8000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/forge_plus
+      - REDIS_URL=redis://redis:6379
+      - MINIO_ENDPOINT=minio:9000
+      - EPISTEMICOS_ENDPOINT=http://epistemicos:8000
+      - SYNAPTICAOS_ENDPOINT=http://synapticaos:8000
+      - ZONE_GUARDIAN_TOKEN=dev-guardian-token
+    depends_on:
+      - postgres
+      - redis
+      - minio
+      - epistemicos
+      - synapticaos
+
+  chronothera:
+    build:
+      context: .
+      dockerfile: Backend/apps/chronothera/Dockerfile
+    ports:
+      - "8030:8000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/chronothera
+      - REDIS_URL=redis://redis:6379
+      - MINIO_ENDPOINT=minio:9000
+      - EPISTEMICOS_ENDPOINT=http://epistemicos:8000
+      - ZONE_GUARDIAN_TOKEN=dev-guardian-token
+    depends_on:
+      - postgres
+      - redis
+      - minio
+      - epistemicos
+
+  postgres:
+    image: postgres:15-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=forge
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  minio:
+    image: minio/minio:latest
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
+  epistemicos_data:
