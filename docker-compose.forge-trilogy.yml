@@ -1,0 +1,192 @@
+version: '3.9'
+
+services:
+  # ============================================================================
+  # Three Independent Forge Trilogy Apps
+  # ============================================================================
+
+  forge:
+    build:
+      context: .
+      dockerfile: Backend/apps/forge/Dockerfile
+    container_name: forge-app
+    ports:
+      - "8010:8010"
+    environment:
+      EPISTEMICOS_URL: http://epistemicos:8001
+      POSTGRES_URL: postgresql://user:password@postgres:5432/forge
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      epistemicos:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8010/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - forge-network
+
+  forge_plus:
+    build:
+      context: .
+      dockerfile: Backend/apps/forge_plus/Dockerfile
+    container_name: forge-plus-app
+    ports:
+      - "8020:8020"
+    environment:
+      EPISTEMICOS_URL: http://epistemicos:8001
+      SYNAPTICAOS_URL: http://synapticaos:8002
+      POSTGRES_URL: postgresql://user:password@postgres:5432/forge_plus
+      REDIS_URL: redis://redis:6379/1
+    depends_on:
+      epistemicos:
+        condition: service_healthy
+      synapticaos:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8020/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - forge-network
+
+  chronothera:
+    build:
+      context: .
+      dockerfile: Backend/apps/chronothera/Dockerfile
+    container_name: chronothera-app
+    ports:
+      - "8030:8030"
+    environment:
+      EPISTEMICOS_URL: http://epistemicos:8001
+      POSTGRES_URL: postgresql://user:password@postgres:5432/chronothera
+      REDIS_URL: redis://redis:6379/2
+    depends_on:
+      epistemicos:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8030/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - forge-network
+
+  # ============================================================================
+  # Kernel Services (Stubbed for Phase 2 testing)
+  # ============================================================================
+
+  epistemicos:
+    image: epistemicos:latest
+    container_name: epistemicos-kernel
+    ports:
+      - "8001:8001"
+    environment:
+      KERNEL_TYPE: epistemicos
+      LOG_LEVEL: info
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - forge-network
+    # Note: Assumes epistemicos image exists or is built separately
+
+  synapticaos:
+    image: synapticaos:latest
+    container_name: synapticaos-kernel
+    ports:
+      - "8002:8002"
+    environment:
+      KERNEL_TYPE: synapticaos
+      LOG_LEVEL: info
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - forge-network
+    # Note: Assumes synapticaos image exists or is built separately
+
+  # ============================================================================
+  # Infrastructure Services
+  # ============================================================================
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: forge-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_INITDB_ARGS: "-c shared_buffers=256MB -c max_connections=200"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - forge-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: forge-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - forge-network
+
+  minio:
+    image: minio/minio:latest
+    container_name: forge-minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio_data:/minio_data
+    command: server /minio_data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - forge-network
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
+
+networks:
+  forge-network:
+    driver: bridge
