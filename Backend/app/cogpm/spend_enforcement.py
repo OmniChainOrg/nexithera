@@ -40,7 +40,7 @@ class SpendEnforcementService:
         operation: str,
         resource_id: Optional[str] = None,
         billing_category: Optional[str] = None,
-        metadata: Optional[str] = None,
+        context_data: Optional[str] = None,
     ) -> UsageEvent:
         """
         Record a real-time usage event (e.g., zone creation, inference call).
@@ -55,7 +55,7 @@ class SpendEnforcementService:
             operation: Operation name (create_zone, allocate_swarm, inference_call, etc.)
             resource_id: Optional reference to created resource (zone_id, swarm_id, etc.)
             billing_category: Optional billing category for cost allocation
-            metadata: Optional JSON metadata (duration, tokens used, parameters, etc.)
+            context_data: Optional JSON metadata (duration, tokens used, parameters, etc.)
         
         Returns:
             UsageEvent record created
@@ -92,7 +92,7 @@ class SpendEnforcementService:
             operation=operation,
             resource_id=resource_id,
             billing_category=billing_category or "compute",
-            metadata=metadata,
+            context_data=context_data,
             created_at=datetime.utcnow(),
             month_year=datetime.utcnow().strftime("%Y-%m"),
         )
