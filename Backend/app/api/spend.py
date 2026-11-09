@@ -98,7 +98,7 @@ def record_usage_event(
             operation=request.operation,
             resource_id=request.resource_id,
             billing_category=request.billing_category,
-            metadata=request.metadata,
+            context_data=request.context_data,
         )
         return UsageEventResponse.from_orm(event)
     except ValueError as e:

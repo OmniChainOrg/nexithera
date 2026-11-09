@@ -69,7 +69,7 @@ class Installation(Base):
     
     # Metadata
     error_message = Column(Text, nullable=True)
-    metadata = Column(Text, nullable=True)  # JSON string for extensibility
+    context_data = Column(Text, nullable=True)  # JSON string for extensibility
 
     # Relationships
     deployments = relationship(
@@ -122,7 +122,7 @@ class Deployment(Base):
     # Audit
     provisioned_at = Column(DateTime, nullable=True)
     error_message = Column(Text, nullable=True)
-    metadata = Column(Text, nullable=True)  # JSON: health status, resource usage, etc.
+    context_data = Column(Text, nullable=True)  # JSON: health status, resource usage, etc.
 
     # Relationship to Installation
     installation = relationship("Installation", back_populates="deployments")
@@ -209,7 +209,7 @@ class UsageEvent(Base):
     
     # Metadata
     operation = Column(String(100), nullable=False)  # create_zone, allocate_swarm, inference, etc.
-    metadata = Column(Text, nullable=True)  # JSON: parameters, duration, tokens used, etc.
+    context_data = Column(Text, nullable=True)  # JSON: parameters, duration, tokens used, etc.
     
     # Timing
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)

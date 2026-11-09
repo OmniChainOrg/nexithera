@@ -26,7 +26,7 @@ class UsageEventRequest(BaseModel):
     operation: str = Field(..., description="create_zone, allocate_swarm, run_inference, etc.")
     resource_id: Optional[str] = Field(None, description="Created resource ID (zone_id, swarm_id)")
     billing_category: Optional[str] = Field("compute", description="Billing category for cost allocation")
-    metadata: Optional[str] = Field(None, description="JSON metadata (duration, tokens, parameters)")
+    context_data: Optional[str] = Field(None, description="JSON metadata (duration, tokens, parameters)")
 
 
 class UsageEventResponse(BaseModel):

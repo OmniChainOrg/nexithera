@@ -44,7 +44,7 @@ def upgrade() -> None:
         sa.Column('cost_cents', sa.Integer, nullable=False),
         sa.Column('billing_category', sa.String(50), nullable=False),
         sa.Column('operation', sa.String(100), nullable=False),
-        sa.Column('metadata', sa.Text, nullable=True),
+        sa.Column('context_data', sa.Text, nullable=True),
         sa.Column('created_at', sa.DateTime, nullable=False, server_default=sa.func.now()),
         sa.Column('month_year', sa.String(7), nullable=False),
         sa.Column('billed', sa.String(20), nullable=False, server_default='pending'),
