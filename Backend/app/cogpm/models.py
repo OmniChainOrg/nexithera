@@ -65,7 +65,7 @@ class Installation(Base):
     # Manifest & configuration
     manifest_hash = Column(String(64), nullable=False)  # SHA256 of app manifest
     spend_policy = Column(String(20), nullable=False)  # hard_stop, reservation, controlled_overage
-    monthly_ceiling_usd = Column(Integer, nullable=False)  # Budget in cents
+    monthly_ceiling_cents = Column(Integer, nullable=False)  # Budget ceiling in cents (e.g., 50000 = $500)
     
     # Metadata
     error_message = Column(Text, nullable=True)
@@ -89,7 +89,7 @@ class Installation(Base):
     __table_args__ = (
         Index("idx_tenant_id_state", "tenant_id", "state"),
         Index("idx_requested_at", "requested_at"),
-        CheckConstraint("monthly_ceiling_usd > 0", name="ck_ceiling_positive"),
+        CheckConstraint("monthly_ceiling_cents > 0", name="ck_ceiling_positive"),
     )
 
     def __repr__(self):
@@ -251,7 +251,7 @@ class BudgetAlert(Base):
     # Alert details
     alert_type = Column(String(50), nullable=False)  # threshold_80, threshold_95, limit_reached, overage
     monthly_spent_cents = Column(Integer, nullable=False)  # Total spent so far this month
-    monthly_ceiling_cents = Column(Integer, nullable=False)  # Installation's ceiling
+    monthly_ceiling_cents = Column(Integer, nullable=False)  # Installation's ceiling in cents
     percentage = Column(Integer, nullable=False)  # 80, 95, 100, 105+
     
     # Action taken

@@ -69,6 +69,10 @@ class SpendEnforcementService:
         ).first()
         if not installation:
             raise ValueError(f"Installation '{installation_id}' not found")
+        
+        # Verify tenant ownership
+        if installation.tenant_id != tenant_id:
+            raise ValueError(f"Unauthorized: Installation does not belong to tenant '{tenant_id}'")
 
         if installation.state != InstallState.ACTIVE:
             raise ValueError(
@@ -99,6 +103,7 @@ class SpendEnforcementService:
 
     def can_allocate_resource(
         self,
+        tenant_id: str,
         installation_id: str,
         estimated_cost_cents: int,
     ) -> tuple[bool, Optional[str]]:
@@ -106,6 +111,7 @@ class SpendEnforcementService:
         Check if a resource allocation should be allowed based on budget.
         
         Args:
+            tenant_id: Tenant making the request (for ownership verification)
             installation_id: Installation to check
             estimated_cost_cents: Estimated cost of new allocation
         
@@ -120,6 +126,10 @@ class SpendEnforcementService:
         ).first()
         if not installation:
             return False, f"Installation '{installation_id}' not found"
+        
+        # Verify tenant ownership
+        if installation.tenant_id != tenant_id:
+            return False, f"Unauthorized: Installation does not belong to tenant '{tenant_id}'"
 
         if installation.state != InstallState.ACTIVE:
             return False, f"Installation is in '{installation.state}' state, not ACTIVE"
@@ -131,8 +141,8 @@ class SpendEnforcementService:
             UsageEvent.month_year == current_month,
         ).scalar() or 0
 
-        # Get ceiling
-        ceiling_cents = installation.monthly_ceiling_usd * 100
+        # Get ceiling (already in cents)
+        ceiling_cents = installation.monthly_ceiling_cents
 
         # Calculate if allocation would exceed ceiling
         total_after = current_spent + estimated_cost_cents
@@ -202,7 +212,7 @@ class SpendEnforcementService:
             UsageEvent.month_year == current_month,
         ).scalar() or 0
 
-        ceiling_cents = installation.monthly_ceiling_usd * 100
+        ceiling_cents = installation.monthly_ceiling_cents
         percentage = int((current_spent / ceiling_cents) * 100) if ceiling_cents > 0 else 0
 
         # Check if threshold crossed
@@ -288,11 +298,11 @@ class SpendEnforcementService:
                 UsageEvent.installation_id == inst.id,
                 UsageEvent.month_year == month_year,
             ).scalar() or 0
-            percentage = int((inst_spent / (inst.monthly_ceiling_usd * 100)) * 100) if inst.monthly_ceiling_usd > 0 else 0
+            percentage = int((inst_spent / inst.monthly_ceiling_cents) * 100) if inst.monthly_ceiling_cents > 0 else 0
             installation_spend[inst.id] = {
                 "app_id": inst.app_id,
                 "spent_cents": inst_spent,
-                "ceiling_cents": inst.monthly_ceiling_usd * 100,
+                "ceiling_cents": inst.monthly_ceiling_cents,
                 "percentage": percentage,
             }
 
@@ -337,7 +347,7 @@ class SpendEnforcementService:
             installation_id=installation.id,
             alert_type=alert_type,
             monthly_spent_cents=monthly_spent_cents,
-            monthly_ceiling_cents=installation.monthly_ceiling_usd * 100,
+            monthly_ceiling_cents=installation.monthly_ceiling_cents,
             percentage=percentage,
             action_taken=action_taken,
             action_details=action_details,

@@ -51,15 +51,15 @@ class InstallRequest(BaseModel):
     Tenant provides:
     - app_id: which app to install (forge, forge_plus, chronothera)
     - spend_policy: how to enforce budget (hard_stop, reservation, controlled_overage)
-    - monthly_ceiling_usd: budget ceiling in USD (multiply by 100 for cents in DB)
+    - monthly_ceiling_usd: budget ceiling in USD (converted to cents in DB: cents = usd * 100)
     """
     app_id: str = Field(..., description="App to install: forge, forge_plus, chronothera")
     spend_policy: SpendPolicy = Field(default=SpendPolicy.HARD_STOP)
-    monthly_ceiling_usd: float = Field(..., ge=0, description="Monthly budget in USD")
+    monthly_ceiling_usd: float = Field(..., ge=1.0, description="Monthly budget in USD (minimum $1.00)")
 
     @validator("monthly_ceiling_usd")
     def validate_ceiling(cls, v):
-        if v < 1:
+        if v < 1.0:
             raise ValueError("monthly_ceiling_usd must be at least $1.00")
         return v
 
@@ -121,7 +121,12 @@ class InstallationResponse(BaseModel):
     
     # Budget
     spend_policy: str
-    monthly_ceiling_usd: float
+    monthly_ceiling_cents: int  # Stored in database as cents
+    
+    @property
+    def monthly_ceiling_usd(self) -> float:
+        """Convert cents to USD for display."""
+        return self.monthly_ceiling_cents / 100.0
     
     # Status
     error_message: Optional[str] = None

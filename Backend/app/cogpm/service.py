@@ -74,7 +74,7 @@ class ProvisioningService:
             requested_at=datetime.utcnow(),
             manifest_hash=manifest.manifest_hash,
             spend_policy=request.spend_policy.value,
-            monthly_ceiling_usd=int(request.monthly_ceiling_usd * 100),  # Convert to cents
+            monthly_ceiling_cents=int(request.monthly_ceiling_usd * 100),  # Convert USD to cents
         )
         self.db.add(installation)
         self.db.flush()  # Get installation.id in DB

@@ -51,7 +51,7 @@ def active_installation(db):
         approved_by="approver@example.com",
         manifest_hash="abc123",
         spend_policy="hard_stop",
-        monthly_ceiling_usd=50000,  # $500/month * 100 = 50000 cents
+        monthly_ceiling_cents=5000000,  # $50,000/month in cents
     )
     db.add(installation)
     db.commit()
@@ -94,13 +94,13 @@ def test_record_usage_event_inactive_installation(service, db):
         requested_by="alice@example.com",
         manifest_hash="abc123",
         spend_policy="hard_stop",
-        monthly_ceiling_usd=5000,
+        monthly_ceiling_cents=5000,
     )
     db.add(installation)
     db.commit()
 
     service = SpendEnforcementService(db=db)
-    with pytest.raises(ValueError, match="not ACTIVE"):
+    with pytest.raises(ValueError, match="Must be.*ACTIVE"):
         service.record_usage_event(
             tenant_id="tenant-123",
             installation_id=installation.id,
@@ -145,6 +145,7 @@ def test_can_allocate_within_budget(service, active_installation):
 
     # Check if $200 allocation is allowed (total would be $300, within $500 ceiling)
     allowed, reason = service.can_allocate_resource(
+        tenant_id="tenant-123",
         installation_id=active_installation.id,
         estimated_cost_cents=20000,  # $200
     )
@@ -155,21 +156,22 @@ def test_can_allocate_within_budget(service, active_installation):
 
 def test_can_allocate_exceeds_budget(service, active_installation):
     """Test allocation denied when exceeding budget (hard_stop)."""
-    # Record $450 spend (close to $500 ceiling)
+    # Record $45,000 spend (close to $50,000 ceiling)
     service.record_usage_event(
         tenant_id="tenant-123",
         installation_id=active_installation.id,
         app_id="forge_plus",
         kernel_id="epistemicos",
         resource_type="zone",
-        cost_cents=450000,  # $4500
+        cost_cents=4500000,  # $45,000
         operation="create_zone",
     )
 
-    # Check if $100 allocation is allowed (total would be $4600, exceeds $5000 ceiling)
+    # Check if $10,000 allocation is allowed (total would be $55,000, exceeds $50,000 ceiling)
     allowed, reason = service.can_allocate_resource(
+        tenant_id="tenant-123",
         installation_id=active_installation.id,
-        estimated_cost_cents=10000,  # $100
+        estimated_cost_cents=1000000,  # $10,000
     )
 
     assert allowed is False
@@ -192,6 +194,7 @@ def test_can_allocate_exactly_at_ceiling(service, active_installation):
 
     # Check if $1 allocation is allowed (total would be $5000, exactly at ceiling)
     allowed, reason = service.can_allocate_resource(
+        tenant_id="tenant-123",
         installation_id=active_installation.id,
         estimated_cost_cents=100,  # $1
     )
@@ -216,7 +219,7 @@ def test_reservation_policy_allows_overage(service, db):
         approved_by="approver@example.com",
         manifest_hash="abc123",
         spend_policy="reservation",
-        monthly_ceiling_usd=100,  # $100 reservation
+        monthly_ceiling_cents=100,  # $100 reservation
     )
     db.add(installation)
     db.commit()
@@ -236,6 +239,7 @@ def test_reservation_policy_allows_overage(service, db):
 
     # Check if $50 allocation is allowed (total would be $140, exceeds $100)
     allowed, reason = service.can_allocate_resource(
+        tenant_id="tenant-123",
         installation_id=installation.id,
         estimated_cost_cents=5000,  # $50
     )
@@ -261,7 +265,7 @@ def test_controlled_overage_policy_allows_everything(service, db):
         approved_by="approver@example.com",
         manifest_hash="abc123",
         spend_policy="controlled_overage",
-        monthly_ceiling_usd=50,  # Low ceiling for testing
+        monthly_ceiling_cents=50,  # Low ceiling for testing
     )
     db.add(installation)
     db.commit()
@@ -281,6 +285,7 @@ def test_controlled_overage_policy_allows_everything(service, db):
 
     # Check if $50 allocation is allowed (total would be $90, way over $50)
     allowed, reason = service.can_allocate_resource(
+        tenant_id="tenant-123",
         installation_id=installation.id,
         estimated_cost_cents=5000,  # $50
     )
@@ -305,21 +310,21 @@ def test_budget_threshold_80_percent(service, db):
         approved_by="approver@example.com",
         manifest_hash="abc123",
         spend_policy="hard_stop",
-        monthly_ceiling_usd=1000,  # $1000 ceiling
+        monthly_ceiling_cents=100000,  # $1000 ceiling
     )
     db.add(installation)
     db.commit()
 
     service = SpendEnforcementService(db=db)
 
-    # Record exactly 80% of ceiling ($800)
+    # Record exactly 80% of ceiling ($800 out of $1000)
     service.record_usage_event(
         tenant_id="tenant-123",
         installation_id=installation.id,
         app_id="forge",
         kernel_id="epistemicos",
         resource_type="zone",
-        cost_cents=80000,  # $800
+        cost_cents=80000,  # $800 = 80% of 100000 cents
         operation="create_zone",
     )
 
@@ -342,21 +347,21 @@ def test_budget_threshold_100_percent(service, db):
         approved_by="approver@example.com",
         manifest_hash="abc123",
         spend_policy="hard_stop",
-        monthly_ceiling_usd=100,
+        monthly_ceiling_cents=10000,  # $100
     )
     db.add(installation)
     db.commit()
 
     service = SpendEnforcementService(db=db)
 
-    # Record exactly 100% of ceiling
+    # Record exactly 100% of ceiling ($100 = 10000 cents)
     service.record_usage_event(
         tenant_id="tenant-123",
         installation_id=installation.id,
         app_id="forge",
         kernel_id="epistemicos",
         resource_type="zone",
-        cost_cents=10000,  # $100
+        cost_cents=10000,  # $100 exactly matches ceiling
         operation="create_zone",
     )
 
@@ -416,7 +421,7 @@ def test_usage_report_by_kernel(service, active_installation, db):
         approved_by="approver@example.com",
         manifest_hash="abc123",
         spend_policy="hard_stop",
-        monthly_ceiling_usd=10000,
+        monthly_ceiling_cents=10000,
     )
     db.add(installation2)
     db.commit()

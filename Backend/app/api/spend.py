@@ -141,36 +141,20 @@ def check_allocation(
     """
     try:
         allowed, reason = service.can_allocate_resource(
+            tenant_id=tenant_id,
             installation_id=installation_id,
             estimated_cost_cents=request.estimated_cost_cents,
         )
-
-        # Get current spend info for response
-        usage = service.get_monthly_usage(tenant_id=tenant_id)
         
-        # Find this installation's spend
-        inst_spend = usage["installations"].get(installation_id, {})
-        current_spent_usd = inst_spend.get("spent_cents", 0) / 100
-        ceiling_usd = inst_spend.get("ceiling_cents", 0) / 100
-        remaining_budget_usd = max(0, ceiling_usd - current_spent_usd)
-
-        if not allowed:
-            # Denied: return 429 (Too Many Requests) for budget exceeded
-            raise HTTPException(
-                status_code=429,
-                detail=reason,
-            )
-
-        return AllocationResponse(
-            allowed=True,
-            reason=None,
-            current_spent_usd=current_spent_usd,
-            ceiling_usd=ceiling_usd,
-            remaining_budget_usd=remaining_budget_usd,
-        )
-
+        # Check if denial is due to unauthorized access
+        if not allowed and "Unauthorized" in (reason or ""):
+            raise HTTPException(status_code=401, detail=reason)
+        
+        return AllocationResponse(allowed=allowed, reason=reason)
     except HTTPException:
         raise
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

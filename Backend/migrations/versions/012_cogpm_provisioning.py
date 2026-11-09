@@ -61,13 +61,13 @@ def upgrade() -> None:
         sa.Column('completed_at', sa.DateTime, nullable=True),
         sa.Column('manifest_hash', sa.String(64), nullable=False),
         sa.Column('spend_policy', sa.String(20), nullable=False),
-        sa.Column('monthly_ceiling_usd', sa.Integer, nullable=False),
+        sa.Column('monthly_ceiling_cents', sa.Integer, nullable=False),
         sa.Column('error_message', sa.Text, nullable=True),
         sa.Column('metadata', sa.Text, nullable=True),
         sa.PrimaryKeyConstraint('id'),
         sa.Index('idx_tenant_id_state', 'tenant_id', 'state'),
         sa.Index('idx_requested_at', 'requested_at'),
-        sa.CheckConstraint('monthly_ceiling_usd > 0', name='ck_ceiling_positive'),
+        sa.CheckConstraint('monthly_ceiling_cents > 0', name='ck_ceiling_positive'),
     )
 
     # Create deployments table
