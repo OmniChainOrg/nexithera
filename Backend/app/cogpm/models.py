@@ -65,7 +65,7 @@ class Installation(Base):
     # Manifest & configuration
     manifest_hash = Column(String(64), nullable=False)  # SHA256 of app manifest
     spend_policy = Column(String(20), nullable=False)  # hard_stop, reservation, controlled_overage
-    monthly_ceiling_usd = Column(Integer, nullable=False)  # Budget in cents
+    monthly_ceiling_cents = Column(Integer, nullable=False)  # Budget ceiling in cents (e.g., 50000 = $500)
     
     # Metadata
     error_message = Column(Text, nullable=True)
@@ -89,7 +89,7 @@ class Installation(Base):
     __table_args__ = (
         Index("idx_tenant_id_state", "tenant_id", "state"),
         Index("idx_requested_at", "requested_at"),
-        CheckConstraint("monthly_ceiling_usd > 0", name="ck_ceiling_positive"),
+        CheckConstraint("monthly_ceiling_cents > 0", name="ck_ceiling_positive"),
     )
 
     def __repr__(self):
@@ -174,3 +174,105 @@ class StateTransition(Base):
 
     def __repr__(self):
         return f"<StateTransition(id={self.id}, {self.from_state} -> {self.to_state})>"
+
+
+class UsageEvent(Base):
+    """
+    Real-time spend tracking for tenants.
+    
+    Records every resource consumption event (CXU zone creation, swarm allocation, etc.)
+    with associated cost for budget enforcement.
+    
+    Used for:
+    1. Real-time budget checks (before allowing new resource allocation)
+    2. Quota enforcement (reject 429 when monthly ceiling exceeded)
+    3. Usage reports & billing reconciliation
+    4. Spend alerts for controlled_overage policies
+    """
+    __tablename__ = "cogpm_usage_events"
+
+    id = Column(String(36), primary_key=True, index=True)  # UUID
+    
+    # Tenant & app tracking
+    tenant_id = Column(String(255), nullable=False, index=True)
+    installation_id = Column(String(36), ForeignKey("cogpm_installations.id", ondelete="CASCADE"), nullable=False, index=True)
+    app_id = Column(String(255), nullable=False)  # forge, forge_plus, chronothera
+    
+    # Kernel & resource tracking
+    kernel_id = Column(String(20), nullable=False)  # epistemicos, synapticaos
+    resource_type = Column(String(50), nullable=False)  # zone, swarm, inference, etc.
+    resource_id = Column(String(255), nullable=True)  # zone_id, swarm_id, etc.
+    
+    # Cost tracking (in cents, USD)
+    cost_cents = Column(Integer, nullable=False)  # Always positive
+    billing_category = Column(String(50), nullable=False)  # compute, storage, inference, etc.
+    
+    # Metadata
+    operation = Column(String(100), nullable=False)  # create_zone, allocate_swarm, inference, etc.
+    metadata = Column(Text, nullable=True)  # JSON: parameters, duration, tokens used, etc.
+    
+    # Timing
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
+    month_year = Column(String(7), nullable=False, index=True)  # YYYY-MM for monthly aggregation
+    
+    # Billing status
+    billed = Column(String(20), nullable=False, default="pending")  # pending, invoiced, paid, disputed
+
+    # Relationship to Installation
+    installation = relationship("Installation")
+
+    # Indexes for common queries
+    __table_args__ = (
+        Index("idx_tenant_month", "tenant_id", "month_year"),
+        Index("idx_tenant_created_at", "tenant_id", "created_at"),
+        Index("idx_installation_id", "installation_id"),
+        Index("idx_kernel_resource", "kernel_id", "resource_type"),
+    )
+
+    def __repr__(self):
+        return f"<UsageEvent(id={self.id}, tenant={self.tenant_id}, op={self.operation}, cost=${self.cost_cents/100:.2f})>"
+
+
+class BudgetAlert(Base):
+    """
+    Alerts for spend policy enforcement.
+    
+    Tracks when tenants hit spend thresholds (80%, 95%, 100%, overage).
+    Used for notifications and policy actions.
+    """
+    __tablename__ = "cogpm_budget_alerts"
+
+    id = Column(String(36), primary_key=True, index=True)  # UUID
+    
+    # Tenant & installation
+    tenant_id = Column(String(255), nullable=False, index=True)
+    installation_id = Column(String(36), ForeignKey("cogpm_installations.id", ondelete="CASCADE"), nullable=False, index=True)
+    
+    # Alert details
+    alert_type = Column(String(50), nullable=False)  # threshold_80, threshold_95, limit_reached, overage
+    monthly_spent_cents = Column(Integer, nullable=False)  # Total spent so far this month
+    monthly_ceiling_cents = Column(Integer, nullable=False)  # Installation's ceiling in cents
+    percentage = Column(Integer, nullable=False)  # 80, 95, 100, 105+
+    
+    # Action taken
+    action_taken = Column(String(100), nullable=True)  # hard_stop: reject, reservation: flag, controlled_overage: allow+notify
+    action_details = Column(Text, nullable=True)  # JSON: what was rejected, notification sent, etc.
+    
+    # Status
+    resolved = Column(String(20), nullable=False, default="pending")  # pending, acknowledged, resolved
+    
+    # Timing
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
+    acknowledged_at = Column(DateTime, nullable=True)
+
+    # Relationship
+    installation = relationship("Installation")
+
+    # Indexes
+    __table_args__ = (
+        Index("idx_tenant_alert_type", "tenant_id", "alert_type"),
+        Index("idx_created_at", "created_at"),
+    )
+
+    def __repr__(self):
+        return f"<BudgetAlert(id={self.id}, tenant={self.tenant_id}, type={self.alert_type}, usage={self.percentage}%)>"
